@@ -35,6 +35,7 @@
     reports: renderReports,
     messenger: renderMessenger,
     settings: renderSettings,
+    'content-studio': typeof renderContentStudio !== 'undefined' ? renderContentStudio : function() {},
   };
 
   // ===== Switch Tab =====
