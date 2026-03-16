@@ -1,109 +1,136 @@
-# 🏢 Claw-Empire AI Corp
+# 🏢 Claw-Empire — AI Agent Office Simulator
 
 > **Command Your AI Agent Empire from the CEO Desk**
 
-[![Deploy](https://img.shields.io/badge/Live-claw--empire--ai.surge.sh-6366f1?style=for-the-badge)](https://claw-empire-ai.surge.sh)
-[![Railway](https://img.shields.io/badge/Backend-Railway-0B0D0E?style=for-the-badge&logo=railway)](https://railway.app)
-[![PWA](https://img.shields.io/badge/PWA-Installable-4CAF50?style=for-the-badge)]()
-[![CI/CD](https://github.com/paopaonyapi-creator/claw-empire-ai/actions/workflows/deploy.yml/badge.svg)](https://github.com/paopaonyapi-creator/claw-empire-ai/actions)
+[![Deployed](https://img.shields.io/badge/🚀_Live-Deployed-22c55e?style=for-the-badge)](https://claw-empire-ai.surge.sh)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-6366f1?style=for-the-badge&logo=github)](https://github.com/paopaonyapi-creator/claw-empire-ai)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-Auto_Deploy-f59e0b?style=for-the-badge)](https://github.com/paopaonyapi-creator/claw-empire-ai/actions)
 
-![Dashboard Preview](screenshot.png)
+---
 
-A virtual AI office simulator where you play as the CEO of an AI corporation. Manage departments, chat with AI-powered agents, assign tasks, and grow your empire.
+## 🎮 What is Claw-Empire?
 
-## ✨ Features
+A **local-first AI agent office simulator** where you play as CEO of your own tech company. Hire AI agents, assign tasks, earn coins, and compete against rival companies — all with a stunning dark-mode UI.
 
-| Feature | Description |
-|---------|-------------|
-| 💬 **AI Chat** | Multi-turn conversations with department agents (Gemini-powered) |
-| ⚡ **Streaming** | Real-time token-by-token AI responses via SSE |
-| 🏗️ **Departments** | Engineering, Marketing, Sales, Support, Design + more |
-| 📋 **Kanban Board** | Drag & drop task management |
-| 📊 **Dashboard** | Real-time metrics and department analytics |
-| 🎨 **Office View** | Interactive 3D-style corporate office |
-| 🌐 **i18n** | Multi-language support (EN/TH) |
-| ☁️ **Cloud Sync** | Supabase-powered cross-device sync |
-| 🔐 **Auth** | Google OAuth + Email login |
-| 📱 **PWA** | Installable as native app + offline support |
+## ✨ Features (30+)
 
-## 💬 CEO Commands
+### 🤖 Agent Management
+- **Agent Dashboard** — View, hire, and manage AI agents with real-time status
+- **Agent Training System** — 8 training courses to level up skills
+- **Agent Mood System** — 5 moods (😊😐😴😤⚡) affecting productivity
+- **Agent Relationships** — Friendship/rivalry bonds between agents
 
-Chat with any agent and use `$` commands:
+### 💬 Communication
+- **AI Chat & CEO Commands** — Chat with agents, use `$ commands` for quick actions
+- **TTS Voice Responses** — Agents speak back (ElevenLabs → Web Speech fallback)
+- **Inter-Agent Messenger** — Agents chat with each other automatically
+- **Messenger Integration** — Telegram, Discord, Slack, WhatsApp channels
 
-| Command | Action |
-|---------|--------|
-| `$task Fix login bug` | Create task → Kanban |
-| `$done login bug` | Mark task as done (+25 XP) |
-| `$assign login to Nova` | Reassign task |
-| `$status busy` | Change agent status |
-| `$priority login high` | Set task priority |
-| `$report` | Agent status report |
-| `$help` | Show all commands |
+### 📊 Dashboard & Analytics
+- **Real-time KPI Cards** — Tasks, agents, success rate, coins
+- **Chart.js Visualizations** — Bar, Radar (team skills), Line (performance trend)
+- **Sprint Burndown Chart** — 7-day sprint tracking
+- **Export Reports** — CSV & JSON export for all data
 
-## 🛠️ Tech Stack
+### 🎮 Gamification
+- **Economy System** — Earn coins through agent task completion
+- **Agent Marketplace** — Buy new agents (Ninja Dev, Oracle AI, Phoenix) & boosts
+- **Daily Quests** — 3 random daily missions with coin rewards
+- **Random Company Events** — Hackathon, Server Crash, Investor Visit, Bug Outbreak
+- **Achievements & Badges** — Unlock rewards for milestones
+- **Level-Up Celebrations** — Full-screen confetti + fanfare
 
-- **Frontend**: Vanilla HTML/CSS/JS (zero frameworks, 15 modules)
-- **Backend**: Express.js on Railway
-- **AI**: Google Gemini 2.5 Flash (streaming SSE)
-- **Auth & DB**: Supabase (JWT + Realtime)
-- **Deploy**: Surge (frontend) + Railway (backend)
-- **CI/CD**: GitHub Actions (auto-deploy on push)
+### 🏆 Endgame Systems
+- **Company Rivals** — Compete vs 5 AI companies (NexusTech, PhantomAI, TitanCorp...)
+- **Prestige System** — Reset for +15% permanent multiplier (idle game loop)
+- **CEO Profile** — RPG-style character card with level, rank, and stats
+- **Company Timeline** — 13 milestone achievements to unlock
+
+### 🎮 Mini-Games
+- **Typing Speed Test** — Type dev words for WPM score + coin reward
+- **Memory Match** — 8 emoji pairs, scored by speed and accuracy
+
+### ⚙️ Settings & Customization
+- **8 Color Themes** — Neon, Ocean, Forest, Sunset, Cherry, Cyberpunk, Arctic, Mono
+- **Dark/Light Mode** — Smooth theme switching
+- **Animated Background** — Particle effects for premium feel
+- **Keyboard Shortcuts** — 6 shortcuts for power users
+- **Enhanced Sound Effects** — Purchase, level-up, coin sounds (Web Audio API)
+
+### 🔐 Infrastructure
+- **Supabase Auth** — Login, registration, session management
+- **CI/CD Pipeline** — GitHub Actions auto-deploy to Surge on push
+- **Mobile Responsive** — Full mobile/tablet support
+- **Animated Splash Screen** — Premium loading experience
+- **Notification Center** — Filter, mark-all-read, badge count
+- **PWA Support** — Installable as mobile app
 
 ## 🚀 Quick Start
 
 ```bash
-# Clone
+# Clone the repo
 git clone https://github.com/paopaonyapi-creator/claw-empire-ai.git
 cd claw-empire-ai
 
-# Backend
-cd backend
-npm install
-GOOGLE_AI_KEY=your_key node server.js
+# Just open index.html — no build required!
+open index.html
 
-# Frontend — just open index.html or use any static server
-npx serve .
+# Or start the backend for AI responses
+cd backend && npm install && node server.js
 ```
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Vanilla JS, CSS3, HTML5 |
+| Charts | Chart.js 4 |
+| Auth | Supabase |
+| Backend | Node.js + Express |
+| AI | Gemini API, OpenAI API |
+| TTS | ElevenLabs / Web Speech API |
+| CI/CD | GitHub Actions → Surge |
+| Audio | Web Audio API |
 
 ## 📁 Project Structure
 
 ```
-├── index.html          # Main app
-├── login.html          # Auth page
-├── styles.css          # Full design system
-├── manifest.json       # PWA manifest
-├── sw.js               # Service worker
+├── index.html          # Main entry + splash screen
+├── styles.css          # 1800+ lines of premium CSS
 ├── js/
-│   ├── app.js          # Entry point
-│   ├── store.js        # State management + cloud sync
-│   ├── chat.js         # AI chat + streaming
-│   ├── dashboard.js    # Analytics dashboard
-│   ├── agents.js       # Agent management
-│   ├── kanban.js       # Task board
-│   ├── settings.js     # User preferences
-│   └── ...             # 8 more modules
+│   ├── store.js        # State management (localStorage)
+│   ├── dashboard.js    # Dashboard + Charts
+│   ├── agents.js       # Agent table + training
+│   ├── chat.js         # AI chat + $ commands
+│   ├── kanban.js       # Task management
+│   ├── messenger.js    # Messenger + agent chat
+│   ├── settings.js     # Settings + themes
+│   ├── gameplay.js     # Quests, events, moods
+│   ├── endgame.js      # Rivals, relationships, prestige
+│   ├── extras.js       # Mini-games, notifications, timeline
+│   └── app.js          # App init + economy + marketplace
 ├── backend/
-│   └── server.js       # Express API proxy
-└── .github/
-    └── workflows/
-        └── deploy.yml  # CI/CD pipeline
+│   └── server.js       # AI proxy server
+└── .github/workflows/  # CI/CD pipeline
 ```
 
-## 🔑 Environment Variables
+## 🎨 Color Themes
 
-### Backend (Railway)
-| Variable | Description |
-|----------|-------------|
-| `GOOGLE_AI_KEY` | Gemini API key |
-| `SUPABASE_ANON_KEY` | Supabase anonymous key |
-| `ELEVENLABS_KEY` | TTS API key (optional) |
-
-### CI/CD (GitHub Secrets)
-| Secret | Description |
-|--------|-------------|
-| `SURGE_TOKEN` | `npx surge token` |
-| `RAILWAY_TOKEN` | Railway project token |
+| Theme | Color |
+|-------|-------|
+| 💜 Neon (Default) | Purple/Indigo |
+| 🌊 Ocean Blue | Sky Blue |
+| 🌲 Forest Green | Emerald |
+| 🌅 Sunset Orange | Orange/Amber |
+| 🌸 Cherry Pink | Pink/Magenta |
+| ⚡ Cyberpunk | Yellow/Gold |
+| ❄️ Arctic Ice | Cyan/Teal |
+| ⬛ Monochrome | Gray |
 
 ## 📜 License
 
-MIT
+MIT License — Built with ❤️ for AI agent enthusiasts.
+
+---
+
+**Made by Claw-Empire Team** 🐾

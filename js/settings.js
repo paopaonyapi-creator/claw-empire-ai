@@ -237,6 +237,9 @@ function renderSettingsAppearance() {
     { id: 'ocean', name: 'Ocean Blue', icon: '🌊', accent: '#0ea5e9', bg: '#0a1628', secondary: '#38bdf8' },
     { id: 'forest', name: 'Forest Green', icon: '🌲', accent: '#22c55e', bg: '#0a1a0e', secondary: '#4ade80' },
     { id: 'sunset', name: 'Sunset Orange', icon: '🌅', accent: '#f97316', bg: '#1a0f0a', secondary: '#fb923c' },
+    { id: 'cherry', name: 'Cherry Pink', icon: '🌸', accent: '#ec4899', bg: '#1a0a14', secondary: '#f472b6' },
+    { id: 'cyber', name: 'Cyberpunk', icon: '⚡', accent: '#eab308', bg: '#0a0a0a', secondary: '#facc15' },
+    { id: 'arctic', name: 'Arctic Ice', icon: '❄️', accent: '#06b6d4', bg: '#0a1418', secondary: '#22d3ee' },
     { id: 'mono', name: 'Monochrome', icon: '⬛', accent: '#71717a', bg: '#09090b', secondary: '#a1a1aa' },
   ];
 
@@ -273,7 +276,7 @@ function renderSettingsAppearance() {
         <span class="sett-card-icon">🎨</span>
         <span class="sett-card-label">Color Theme</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px">
         ${themes.map(t => `
           <button onclick="applyColorTheme('${t.id}')" style="padding:12px 8px;border-radius:10px;border:2px solid ${colorTheme===t.id ? t.accent : 'transparent'};
             background:${colorTheme===t.id ? t.accent+'20' : 'var(--bg-input)'};cursor:pointer;text-align:center;transition:all 0.2s;
@@ -699,6 +702,9 @@ const COLOR_THEMES = {
   ocean:  { accent: '#0ea5e9', accentLight: '#38bdf8', accentDark: '#0284c7', bg: '#0a1628', bgSecondary: '#0c1e36', bgCard: '#122a45', bgSidebar: '#081420', bgInput: '#0f2035', border: '#1a3555', glow: 'rgba(14,165,233,0.25)' },
   forest: { accent: '#22c55e', accentLight: '#4ade80', accentDark: '#16a34a', bg: '#0a1a0e', bgSecondary: '#0f2414', bgCard: '#15301a', bgSidebar: '#081508', bgInput: '#112510', border: '#1e452a', glow: 'rgba(34,197,94,0.25)' },
   sunset: { accent: '#f97316', accentLight: '#fb923c', accentDark: '#ea580c', bg: '#1a0f0a', bgSecondary: '#24150e', bgCard: '#351f15', bgSidebar: '#15100a', bgInput: '#2a1810', border: '#452e1e', glow: 'rgba(249,115,22,0.25)' },
+  cherry: { accent: '#ec4899', accentLight: '#f472b6', accentDark: '#db2777', bg: '#1a0a14', bgSecondary: '#24101c', bgCard: '#351528', bgSidebar: '#150a10', bgInput: '#2a1020', border: '#451e35', glow: 'rgba(236,72,153,0.25)' },
+  cyber:  { accent: '#eab308', accentLight: '#facc15', accentDark: '#ca8a04', bg: '#0a0a0a', bgSecondary: '#1a1a0e', bgCard: '#252514', bgSidebar: '#10100a', bgInput: '#1e1e10', border: '#3a3a1e', glow: 'rgba(234,179,8,0.25)' },
+  arctic: { accent: '#06b6d4', accentLight: '#22d3ee', accentDark: '#0891b2', bg: '#0a1418', bgSecondary: '#0e1c22', bgCard: '#152830', bgSidebar: '#081015', bgInput: '#102025', border: '#1e3540', glow: 'rgba(6,182,212,0.25)' },
   mono:   { accent: '#71717a', accentLight: '#a1a1aa', accentDark: '#52525b', bg: '#09090b', bgSecondary: '#18181b', bgCard: '#27272a', bgSidebar: '#0f0f10', bgInput: '#1c1c1e', border: '#3f3f46', glow: 'rgba(113,113,122,0.25)' },
 };
 
