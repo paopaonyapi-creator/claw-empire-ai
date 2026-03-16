@@ -163,6 +163,73 @@ app.post('/api/chat', rateLimiter, verifyAuth, async (req, res) => {
   }
 });
 
+// ===== POST /api/chat/stream — streaming SSE endpoint =====
+app.post('/api/chat/stream', rateLimiter, verifyAuth, async (req, res) => {
+  try {
+    const { messages, system } = req.body;
+
+    // Find available Gemini provider
+    let providerKey, providerConfig;
+    for (const [key, p] of Object.entries(PROVIDERS)) {
+      if (p.type === 'gemini' && process.env[p.envKey]) {
+        providerKey = key;
+        providerConfig = p;
+        break;
+      }
+    }
+    if (!providerConfig) return res.status(503).json({ error: 'No streaming provider available' });
+
+    const apiKey = process.env[providerConfig.envKey];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${providerConfig.model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+    // Build Gemini multi-turn format
+    const contents = messages.map(m => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }]
+    }));
+    const body = { contents, generationConfig: { maxOutputTokens: 2048, temperature: 0.7 } };
+    if (system) body.systemInstruction = { parts: [{ text: system }] };
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Provider', providerKey);
+    res.setHeader('X-Model', providerConfig.model);
+    res.flushHeaders();
+
+    // Stream from Gemini
+    const geminiResp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!geminiResp.ok) {
+      const t = await geminiResp.text();
+      res.write(`data: ${JSON.stringify({ error: `${geminiResp.status}: ${t}` })}\n\n`);
+      res.end();
+      return;
+    }
+
+    // Pipe SSE chunks
+    const reader = geminiResp.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      res.write(chunk);
+    }
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (err) {
+    console.error('[/api/chat/stream] Error:', err.message);
+    try { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); } catch(e) {}
+    res.end();
+  }
+});
+
 // ===== POST /api/tts — proxy to ElevenLabs =====
 app.post('/api/tts', rateLimiter, verifyAuth, async (req, res) => {
   const apiKey = process.env.ELEVENLABS_KEY;

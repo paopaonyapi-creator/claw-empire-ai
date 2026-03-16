@@ -65,6 +65,79 @@ async function callBackendProxy(systemPrompt, userText, agent) {
   return data;
 }
 
+// Call AI via backend proxy (STREAMING)
+async function callBackendProxyStream(systemPrompt, userText, agent) {
+  // Build conversation history (same as non-streaming)
+  const messages = [];
+  if (agent) {
+    const history = Store.get('messages')
+      .filter(m => (m.from === agent.id || m.to === agent.id) && !m.isTyping)
+      .slice(-10);
+    history.forEach(m => {
+      messages.push({ role: m.from === 'ceo' ? 'user' : 'assistant', content: m.text });
+    });
+  }
+  if (!messages.length || messages[messages.length - 1].content !== userText) {
+    messages.push({ role: 'user', content: userText });
+  }
+  // Auth headers
+  const headers = { 'Content-Type': 'application/json' };
+  if (window.supabaseClient) {
+    try {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+    } catch(e) {}
+  }
+  const resp = await fetch(BACKEND_URL + '/api/chat/stream', {
+    method: 'POST', headers,
+    body: JSON.stringify({ messages, system: systemPrompt })
+  });
+  if (!resp.ok) throw new Error(`Stream: ${resp.status}`);
+
+  const provider = resp.headers.get('X-Provider') || 'gemini';
+  const model = resp.headers.get('X-Model') || 'gemini-2.5-flash';
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+
+  // Get the typing message ID to update in real-time
+  const typingMsg = Store.get('messages').find(m => m.isTyping && m.from === (agent?.id || selectedChatAgent));
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // Parse SSE lines
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') break;
+        try {
+          const parsed = JSON.parse(data);
+          const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          if (text) {
+            fullText += text;
+            // Update the typing message in real-time
+            if (typingMsg) {
+              Store.update('messages', msgs => msgs.map(m =>
+                m.id === typingMsg.id ? { ...m, text: fullText + '▌', isStreaming: true } : m
+              ));
+              renderChat();
+            }
+          }
+        } catch(e) { /* skip non-JSON lines */ }
+      }
+    }
+  }
+
+  console.log(`🚀 Streamed ${fullText.length} chars from ${provider}`);
+  return { response: fullText, provider, model };
+}
+
 function getActiveAIProvider() {
   // Backend proxy counts as a provider
   if (_backendAvailable) return { name: 'Backend', icon: '🚀', label: 'Railway', type: 'backend' };
@@ -87,6 +160,14 @@ async function callAIWithFailover(systemPrompt, userText, agent) {
     try {
       if (_backendAvailable === null) await checkBackendProviders();
       if (_backendAvailable) {
+        // Try streaming first
+        try {
+          const streamResult = await callBackendProxyStream(systemPrompt, userText, agent);
+          return { response: streamResult.response, provider: { name: streamResult.provider, icon: '🚀', label: streamResult.model, type: 'backend' }, failovers: 0, streamed: true };
+        } catch(streamErr) {
+          console.log('🔄 Stream failed, falling back to non-stream:', streamErr.message);
+        }
+        // Fallback to non-streaming
         const data = await callBackendProxy(systemPrompt, userText, agent);
         console.log(`🚀 Backend proxy → ${data.provider} (${data.model})`);
         return { response: data.response, provider: { name: data.provider, icon: '🚀', label: data.model, type: 'backend' }, failovers: 0 };
