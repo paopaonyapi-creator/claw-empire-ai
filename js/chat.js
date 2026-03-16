@@ -855,11 +855,42 @@ async function speakMessage(msgId, agentId) {
   if (!cleanText) { showToast('ไม่มีข้อความสำหรับอ่าน', 'warning'); return; }
 
   const voiceSettings = getAgentVoiceSettings(agentId);
-  const elevenLabsKey = localStorage.getItem('api_ELEVENLABS_KEY');
 
   if (btn) { btn.innerHTML = '⏳'; btn.classList.add('tts-loading'); }
 
-  // Try ElevenLabs first if key available
+  // Try Backend Proxy first (secure — no API key exposed)
+  if (BACKEND_URL && _backendAvailable !== false) {
+    try {
+      const agentName = Store.getAgent(agentId)?.name?.toLowerCase() || 'default';
+      const voiceId = ELEVENLABS_VOICES[agentName] || ELEVENLABS_VOICES['default'];
+      const token = (typeof supabase !== 'undefined' && supabase.auth) ? (await supabase.auth.getSession())?.data?.session?.access_token : null;
+      const resp = await fetch(BACKEND_URL + '/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+        body: JSON.stringify({ text: cleanText.slice(0, 2000), voiceId }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (resp.ok) {
+        const audioBlob = await resp.blob();
+        if (audioBlob.size > 0) {
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          currentAudioPlayer = audio;
+          if (btn) { btn.innerHTML = '⏹️'; btn.classList.remove('tts-loading'); btn.classList.add('tts-playing'); }
+          audio.onended = () => { stopSpeaking(); URL.revokeObjectURL(audioUrl); };
+          audio.onerror = () => { stopSpeaking(); };
+          await audio.play();
+          showToast(`🔊 ${voiceSettings.name} กำลังพูด... (ElevenLabs)`, 'info');
+          return;
+        }
+      }
+    } catch (e) {
+      console.log('Backend TTS failed, trying direct / browser fallback:', e.message);
+    }
+  }
+
+  // Fallback: Direct ElevenLabs (if local key exists)
+  const elevenLabsKey = localStorage.getItem('api_ELEVENLABS_KEY');
   if (elevenLabsKey) {
     try {
       const agentName = Store.getAgent(agentId)?.name?.toLowerCase() || 'default';

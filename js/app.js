@@ -269,20 +269,45 @@
 
   // ===== Keyboard Shortcuts =====
   document.addEventListener('keydown', (e) => {
+    // Don't trigger shortcuts when typing in inputs/textareas
+    const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+
     if (e.key === 'Escape') {
       if (commandPaletteOpen) { closeCommandPalette(); return; }
       closeModal(); searchResults.classList.remove('active');
+      document.activeElement?.blur(); // Unfocus any input
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault();
       if (commandPaletteOpen) closeCommandPalette();
       else openCommandPalette();
     }
-    // Number shortcuts for tabs
+    // Alt+1-9: Switch tabs
     if (e.altKey && e.key >= '1' && e.key <= '9') {
       e.preventDefault();
       const tabs = ['dashboard','office','kanban','agents','chat','skills','meetings','reports','settings'];
       if (tabs[parseInt(e.key) - 1]) switchTab(tabs[parseInt(e.key) - 1]);
+    }
+    // Ctrl+/: Focus chat input
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+      e.preventDefault();
+      switchTab('chat');
+      setTimeout(() => document.getElementById('chatInput')?.focus(), 100);
+    }
+    // Ctrl+N: New task (open kanban + add task modal)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isTyping) {
+      e.preventDefault();
+      switchTab('kanban');
+      setTimeout(() => { if (typeof showAddTaskModal === 'function') showAddTaskModal(); }, 200);
+    }
+    // Ctrl+D: Toggle dark/light theme
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd' && !isTyping) {
+      e.preventDefault();
+      document.getElementById('themeToggle')?.click();
+    }
+    // ?: Show shortcut help (when not typing)
+    if (e.key === '?' && !isTyping && !e.ctrlKey && !e.metaKey) {
+      showToast('⌨️ Ctrl+K Search · Alt+1-9 Tabs · Ctrl+/ Chat · Ctrl+N Task · Ctrl+D Theme', 'info', 4000);
     }
   });
 
@@ -418,9 +443,8 @@
             id: generateId(), text: `${agents[idx].name} leveled up to Level ${agents[idx].level}! 🎉`,
             type: 'info', ts: Date.now(), read: false
           }, ...ns]);
-          if (typeof showLiveNotification === 'function') {
-            showLiveNotification('🎉', `${agents[idx].name} Level Up!`, `ขึ้นเลเวล ${agents[idx].level} แล้ว!`, 'success');
-          }
+          showLevelUpCelebration(agents[idx]);
+          checkAchievements(agents[idx]);
           playSound('success');
         }
       }
@@ -479,3 +503,102 @@
   console.log('%cAI Agent Office Simulator — Enhanced Edition!', 'color:#818cf8');
   console.log('%cShortcuts: Ctrl+K (search), Alt+1-9 (tabs), Esc (close)', 'color:#5a6480');
 })();
+
+// ===== 🎉 Level-Up Celebration System =====
+function showLevelUpCelebration(agent) {
+  // Remove old celebration if any
+  document.getElementById('levelUpCelebration')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'levelUpCelebration';
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);animation:fadeIn .3s ease;
+  `;
+
+  // Confetti particles
+  let confetti = '';
+  const colors = ['#f59e0b','#6366f1','#22c55e','#ef4444','#06b6d4','#ec4899','#8b5cf6'];
+  for (let i = 0; i < 40; i++) {
+    const x = Math.random() * 100;
+    const delay = Math.random() * 1;
+    const duration = 1.5 + Math.random() * 2;
+    const color = colors[i % colors.length];
+    const size = 6 + Math.random() * 6;
+    confetti += `<div style="position:absolute;left:${x}%;top:-10px;width:${size}px;height:${size}px;
+      background:${color};border-radius:${Math.random() > 0.5 ? '50%' : '2px'};
+      animation:confettiFall ${duration}s ${delay}s ease-in forwards;opacity:0"></div>`;
+  }
+
+  const dept = typeof Store !== 'undefined' ? Store.getDeptInfo(agent.department) : null;
+  const rankTitle = agent.level >= 10 ? '🏆 Legend' : agent.level >= 7 ? '⭐ Expert' : agent.level >= 4 ? '💎 Senior' : '🔰 Junior';
+
+  overlay.innerHTML = `
+    ${confetti}
+    <div style="text-align:center;padding:40px 50px;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(139,92,246,0.2));
+      border:2px solid rgba(99,102,241,0.5);border-radius:24px;position:relative;
+      animation:celebPulse 1.5s ease infinite;max-width:380px">
+      <div style="font-size:64px;margin-bottom:8px;animation:celebBounce .6s ease">🎉</div>
+      <div style="font-size:28px;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444,#ec4899);
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px">LEVEL UP!</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:12px">
+        ${agent.name} → Level ${agent.level}
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+        ${dept?.icon || '🏢'} ${dept?.name || agent.department} · ${rankTitle}
+      </div>
+      <div style="display:flex;gap:16px;justify-content:center;margin-bottom:20px">
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:700;color:var(--accent-light)">${agent.tasksCompleted || 0}</div>
+          <div style="font-size:10px;color:var(--text-muted)">Tasks Done</div>
+        </div>
+        <div style="width:1px;background:var(--border)"></div>
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#22c55e">${agent.level}</div>
+          <div style="font-size:10px;color:var(--text-muted)">New Level</div>
+        </div>
+        <div style="width:1px;background:var(--border)"></div>
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#f59e0b">${agent.xpMax}</div>
+          <div style="font-size:10px;color:var(--text-muted)">Next XP</div>
+        </div>
+      </div>
+      <button onclick="document.getElementById('levelUpCelebration')?.remove()"
+        style="padding:8px 24px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
+        border:none;border-radius:12px;color:#fff;font-weight:600;cursor:pointer;font-size:14px">
+        🚀 Awesome!
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Auto dismiss after 6 seconds
+  setTimeout(() => overlay.remove(), 6000);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+// ===== 🏅 Achievement System =====
+const ACHIEVEMENTS = [
+  { id: 'first_blood', title: '🩸 First Blood', desc: 'Complete first task', check: a => (a.tasksCompleted || 0) >= 1 },
+  { id: 'lv5', title: '⭐ Rising Star', desc: 'Reach Level 5', check: a => a.level >= 5 },
+  { id: 'lv10', title: '🏆 Legend', desc: 'Reach Level 10', check: a => a.level >= 10 },
+  { id: 'tasks10', title: '📋 Task Master', desc: 'Complete 10 tasks', check: a => (a.tasksCompleted || 0) >= 10 },
+  { id: 'tasks50', title: '🔥 Unstoppable', desc: 'Complete 50 tasks', check: a => (a.tasksCompleted || 0) >= 50 },
+  { id: 'tasks100', title: '💎 Diamond Worker', desc: 'Complete 100 tasks', check: a => (a.tasksCompleted || 0) >= 100 },
+];
+
+function checkAchievements(agent) {
+  const unlocked = JSON.parse(localStorage.getItem('achievements') || '{}');
+  ACHIEVEMENTS.forEach(ach => {
+    const key = `${agent.id}_${ach.id}`;
+    if (!unlocked[key] && ach.check(agent)) {
+      unlocked[key] = { ts: Date.now(), agent: agent.name };
+      localStorage.setItem('achievements', JSON.stringify(unlocked));
+      showToast(`🏅 Achievement Unlocked! ${ach.title} — ${agent.name}: ${ach.desc}`, 'success', 5000);
+      Store.update('notifications', ns => [{
+        id: generateId(), text: `🏅 ${agent.name}: ${ach.title} — ${ach.desc}`,
+        type: 'success', ts: Date.now(), read: false
+      }, ...ns]);
+    }
+  });
+}
