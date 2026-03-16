@@ -1181,7 +1181,7 @@ function showContentHistory() {
             <p style="color:var(--text-muted);font-size:11px;margin:2px 0 0">${history.length} รายการ — AI สร้างให้ทั้งหมด</p>
           </div>
         </div>
-        ${history.length ? '<button class="btn btn-sm" onclick="_exportHistory()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:10px">📥 Export .txt</button>' : ''}
+        ${history.length ? '<div style="display:flex;gap:4px"><button class="btn btn-sm" onclick="_exportHistory()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:10px">📥 Export</button><button class="btn btn-sm" onclick="_clearAllHistory()" style="background:rgba(239,68,68,0.1);color:#ef4444;font-size:10px">🗑️ ลบทั้งหมด</button></div>' : ''}
       </div>
       <div style="max-height:450px;overflow-y:auto">
         ${history.length ? history.map((h, i) => `
@@ -1194,7 +1194,10 @@ function showContentHistory() {
                   <div style="font-size:9px;color:var(--text-muted)">${h.provider} · ${new Date(h.timestamp).toLocaleString('th-TH')}</div>
                 </div>
               </div>
-              <button class="btn btn-sm" onclick="navigator.clipboard.writeText(${JSON.stringify(h.content).replace(/'/g,"\\'")});showToast('📋 คัดลอกแล้ว!','success')" style="font-size:9px;padding:2px 8px">📋</button>
+              <div style="display:flex;gap:4px">
+                <button class="btn btn-sm" onclick="navigator.clipboard.writeText(${JSON.stringify(h.content).replace(/'/g,"\\'")});showToast('📋 คัดลอกแล้ว!','success')" style="font-size:9px;padding:2px 8px">📋</button>
+                <button class="btn btn-sm" onclick="_deleteHistoryItem(${i})" style="font-size:9px;padding:2px 8px;color:#ef4444">🗑️</button>
+              </div>
             </div>
             <div style="font-size:11px;line-height:1.5;color:var(--text-muted);max-height:60px;overflow:hidden;white-space:pre-wrap">${(h.content||'').substring(0,150)}${(h.content||'').length > 150 ? '...' : ''}</div>
           </div>
@@ -1220,6 +1223,64 @@ function _exportHistory() {
   a.download = `content-history-${new Date().toISOString().slice(0,10)}.txt`;
   a.click();
   showToast('📥 Export เสร็จแล้ว!', 'success');
+}
+
+function _deleteHistoryItem(index) {
+  const history = _getContentHistory();
+  if (index >= 0 && index < history.length) {
+    history.splice(index, 1);
+    localStorage.setItem('cs-content-history', JSON.stringify(history));
+    showToast('🗑️ ลบแล้ว!', 'success');
+    showContentHistory();
+  }
+}
+
+function _clearAllHistory() {
+  if (!confirm('ลบประวัติทั้งหมด? (ย้อนกลับไม่ได้)')) return;
+  localStorage.removeItem('cs-content-history');
+  showToast('🗑️ ลบประวัติทั้งหมดแล้ว!', 'success');
+  showContentHistory();
+}
+
+// ===== 💾 Backup & Restore =====
+function exportFullBackup() {
+  const backup = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    try { backup[key] = JSON.parse(localStorage.getItem(key)); } catch { backup[key] = localStorage.getItem(key); }
+  }
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `claw-empire-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  showToast('💾 Backup เสร็จ! เก็บไฟล์ไว้ในที่ปลอดภัย', 'success');
+}
+
+function importFullBackup() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!confirm(`นำเข้าข้อมูลจาก Backup? (${Object.keys(data).length} keys)\n\nข้อมูลปัจจุบันจะถูกแทนที่!`)) return;
+        Object.entries(data).forEach(([key, val]) => {
+          localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+        });
+        showToast('✅ Restore สำเร็จ! กำลัง reload...', 'success');
+        setTimeout(() => location.reload(), 1500);
+      } catch (err) {
+        showToast('❌ ไฟล์ไม่ถูกต้อง: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
 // ===== 📅 Calendar Scheduling =====

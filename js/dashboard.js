@@ -105,6 +105,41 @@ function renderDashboard() {
       </div>
     </div>
 
+    <!-- Content Studio Quick Stats -->
+    <div style="margin-bottom:24px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(236,72,153,0.06));border:1px solid rgba(99,102,241,0.15);border-radius:16px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">📝</span>
+          <span style="font-weight:800;font-size:14px;background:linear-gradient(135deg,#6366f1,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Content Studio</span>
+        </div>
+        <button class="btn btn-sm" onclick="switchTab('content-studio')" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:10px">📝 Open Studio</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        ${(() => {
+          const h = JSON.parse(localStorage.getItem('cs-content-history') || '[]');
+          const s = JSON.parse(localStorage.getItem('cs-scheduled-posts') || '[]');
+          const ci = JSON.parse(localStorage.getItem('content-studio-items') || '[]');
+          return `
+          <div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:22px;font-weight:800;color:#6366f1">${h.length}</div>
+            <div style="font-size:10px;color:var(--text-muted)">AI Generated</div>
+          </div>
+          <div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:22px;font-weight:800;color:#ec4899">${s.length}</div>
+            <div style="font-size:10px;color:var(--text-muted)">Scheduled</div>
+          </div>
+          <div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:22px;font-weight:800;color:#22c55e">${ci.length}</div>
+            <div style="font-size:10px;color:var(--text-muted)">Pipeline Items</div>
+          </div>
+          <div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:22px;font-weight:800;color:#f59e0b">10</div>
+            <div style="font-size:10px;color:var(--text-muted)">AI Powers</div>
+          </div>`;
+        })()}
+      </div>
+    </div>
+
     <div class="grid-3" style="margin-bottom:24px">
       <!-- Agent Rankings -->
       <div class="card" style="grid-column:span 2">

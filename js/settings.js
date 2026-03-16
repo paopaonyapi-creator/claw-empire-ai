@@ -21,6 +21,12 @@ function renderSettings() {
       </div>
       <div class="settings-header-actions">
         <span class="settings-version">v2.0.4</span>
+        <button class="btn btn-sm" onclick="exportFullBackup()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff">
+          💾 Backup
+        </button>
+        <button class="btn btn-sm" onclick="importFullBackup()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff">
+          📂 Restore
+        </button>
         <button class="btn btn-sm" onclick="showToast('Settings are up to date ✅','success')">
           🔄 Check Updates
         </button>
