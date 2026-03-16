@@ -248,6 +248,10 @@ function renderChat() {
           </div>
           <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
             ${hasApiKey ? `<span class="tag tag-success" style="font-size:10px">${aiIcon} ${activeAI} AI Active</span>` : '<span class="tag tag-muted" style="font-size:10px">💤 Simulated</span>'}
+            <input id="chatMsgSearch" placeholder="🔍 ค้นหาข้อความ..." oninput="searchChatMessages(this.value)"
+              style="width:0;padding:0;border:1px solid var(--border);border-radius:8px;background:var(--bg-input);color:var(--text);font-size:11px;transition:all 0.3s;opacity:0;box-sizing:border-box"
+            />
+            <button class="btn btn-sm" onclick="toggleChatSearch()" title="ค้นหา">🔍</button>
             <button class="btn btn-sm" onclick="clearChatHistory()">🗑️</button>
             <button class="btn btn-sm" onclick="showToast('Report requested','info')">📄 Report</button>
             <button class="btn btn-sm" onclick="showToast('Meeting scheduled','info')">📅 Meeting</button>
@@ -346,6 +350,59 @@ function clearChatHistory() {
   Store.update('messages', msgs => msgs.filter(m => m.from !== selectedChatAgent && m.to !== selectedChatAgent));
   showToast('Chat cleared 🗑️', 'info');
   renderChat();
+}
+
+function toggleChatSearch() {
+  const input = document.getElementById('chatMsgSearch');
+  if (!input) return;
+  if (input.style.width === '0px' || input.style.width === '0' || !input.style.width) {
+    input.style.width = '160px';
+    input.style.padding = '5px 10px';
+    input.style.opacity = '1';
+    input.focus();
+  } else {
+    input.style.width = '0';
+    input.style.padding = '0';
+    input.style.opacity = '0';
+    input.value = '';
+    // Reset highlight
+    document.querySelectorAll('.chat-message').forEach(el => el.style.display = '');
+  }
+}
+
+function searchChatMessages(query) {
+  const msgEls = document.querySelectorAll('.chat-message');
+  if (!query.trim()) {
+    msgEls.forEach(el => el.style.display = '');
+    return;
+  }
+  const q = query.toLowerCase();
+  let found = 0;
+  msgEls.forEach(el => {
+    const text = el.textContent.toLowerCase();
+    if (text.includes(q)) {
+      el.style.display = '';
+      el.style.animation = 'fadeIn 0.3s';
+      found++;
+    } else {
+      el.style.display = 'none';
+    }
+  });
+  // Show count
+  const countEl = document.getElementById('chatSearchCount');
+  if (!countEl) {
+    const header = document.querySelector('.chat-header-bar');
+    if (header) {
+      const span = document.createElement('span');
+      span.id = 'chatSearchCount';
+      span.style.cssText = 'font-size:10px;color:var(--text-muted);position:absolute;bottom:2px;right:8px';
+      span.textContent = `${found} found`;
+      header.style.position = 'relative';
+      header.appendChild(span);
+    }
+  } else {
+    countEl.textContent = `${found} found`;
+  }
 }
 
 function formatChatMessage(text) {

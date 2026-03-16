@@ -156,6 +156,7 @@ function renderContentStudio() {
           <button class="btn btn-sm" onclick="aiGenerateHooks()" style="background:linear-gradient(135deg,#ef4444,#ec4899);color:#fff;font-size:11px">🎣 Generate Hooks</button>
           <button class="btn btn-sm" onclick="aiGenerateHashtags()" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;font-size:11px">#️⃣ Hashtags</button>
           <button class="btn btn-sm" onclick="aiContentScore()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-size:11px">💯 Content Score</button>
+          <button class="btn btn-sm" onclick="aiContentPlanner()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:11px">📋 Planner 7D</button>
           <button class="btn btn-sm" onclick="aiVisualBrief()" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;font-size:11px">🎨 Visual Brief</button>
           <button class="btn btn-sm" onclick="aiVideoScript()" style="background:linear-gradient(135deg,#ec4899,#f59e0b);color:#fff;font-size:11px">🎬 Video Script</button>
           <button class="btn btn-sm" onclick="aiWeeklyAnalysis()" style="background:linear-gradient(135deg,#3b82f6,#22c55e);color:#fff;font-size:11px">📊 AI Analysis</button>
@@ -1196,6 +1197,7 @@ function showContentHistory() {
               </div>
               <div style="display:flex;gap:4px">
                 <button class="btn btn-sm" onclick="navigator.clipboard.writeText(${JSON.stringify(h.content).replace(/'/g,"\\'")});showToast('📋 คัดลอกแล้ว!','success')" style="font-size:9px;padding:2px 8px">📋</button>
+                <button class="btn btn-sm" onclick="aiContentRemix(${i})" style="font-size:9px;padding:2px 8px;color:#6366f1" title="Remix">🔄</button>
                 <button class="btn btn-sm" onclick="_deleteHistoryItem(${i})" style="font-size:9px;padding:2px 8px;color:#ef4444">🗑️</button>
               </div>
             </div>
@@ -1240,6 +1242,100 @@ function _clearAllHistory() {
   localStorage.removeItem('cs-content-history');
   showToast('🗑️ ลบประวัติทั้งหมดแล้ว!', 'success');
   showContentHistory();
+}
+
+// ===== 📋 Content Planner AI (7 Days) =====
+async function aiContentPlanner() {
+  const topic = _getTopicInput();
+  _showAILoading('📋', 'Content Planner', 'กำลังวางแผน 7 วัน...');
+  try {
+    const result = await _callAIWithTimeout(
+      `คุณคือ Content Planner ผู้เชี่ยวชาญด้านการวางแผนคอนเทนต์
+ตอบเป็นภาษาไทย วางแผนคอนเทนต์ 7 วัน:
+
+แต่ละวันต้องมี:
+- ชื่อคอนเทนต์
+- Platform (เลือกจาก: facebook, instagram, tiktok, x, youtube)
+- ประเภท (เลือกจาก: post, video, reel, carousel, live, story)
+- เวลาโพสต์ที่ดีที่สุด
+- เหตุผลสั้นๆ
+
+ตอบเป็น JSON array format เท่านั้น:
+[{"day":1,"title":"ชื่อ","platform":"facebook","type":"post","reason":"เหตุผล"},...]
+
+ห้ามตอบอย่างอื่นนอกจาก JSON array ห่อ JSON ด้วย [ ] ตัวเดียวเท่านั้น`,
+      `วางแผนคอนเทนต์ 7 วัน สำหรับหัวข้อ: ${topic}`,
+      { name: 'Content Planner', department: 'Strategy' }
+    );
+    const responseText = result.response;
+    // Try to extract JSON array from AI response
+    let plan = null;
+    try {
+      const jsonMatch = responseText.match(/\[\s*\{[\s\S]*?\}\s*\]/)
+      if (jsonMatch) plan = JSON.parse(jsonMatch[0]);
+    } catch(e) { console.log('Plan JSON parse failed', e); }
+
+    if (plan && Array.isArray(plan) && plan.length > 0) {
+      // Auto-add to calendar
+      const now = new Date();
+      const posts = _getScheduledPosts();
+      let added = 0;
+      plan.forEach(p => {
+        const targetDay = now.getDate() + (p.day || 1);
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        if (targetDay <= daysInMonth) {
+          posts.push({
+            title: p.title || 'Untitled',
+            platform: p.platform || 'facebook',
+            type: p.type || 'post',
+            day: targetDay,
+            month: now.getMonth(),
+            year: now.getFullYear(),
+            created: Date.now() + added,
+            fromPlanner: true
+          });
+          added++;
+        }
+      });
+      localStorage.setItem('cs-scheduled-posts', JSON.stringify(posts));
+      // Show result with auto-schedule confirmation
+      _showAIResult('📋', 'Content Planner', result.provider?.name || 'AI',
+        `✅ เพิ่ม ${added} โพสต์ใน Calendar อัตโนมัติแล้ว!\n\n` +
+        plan.map((p,i) => `📅 วันที่ ${now.getDate()+(p.day||1)} | ${p.platform} | ${p.type}\n   📌 ${p.title}\n   💡 ${p.reason || ''}`).join('\n\n')
+      );
+      showToast(`📋 เพิ่ม ${added} โพสต์ใน Calendar!`, 'success');
+    } else {
+      // Couldn't parse JSON, just show raw result
+      _showAIResult('📋', 'Content Planner', result.provider?.name || 'AI', responseText);
+    }
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// ===== 🔄 Content Remix =====
+async function aiContentRemix(historyIndex) {
+  const history = _getContentHistory();
+  if (historyIndex < 0 || historyIndex >= history.length) return;
+  const original = history[historyIndex];
+  const platforms = ['Facebook', 'Instagram', 'TikTok', 'X/Twitter', 'YouTube'];
+  
+  _showAILoading('🔄', 'Content Remix', 'กำลัง Remix...');
+  try {
+    const result = await _callAIWithTimeout(
+      `คุณคือ Content Remix Specialist ผู้เชี่ยวชาญด้านการปรับคอนเทนต์ให้เหมาะกับแต่ละแพลตฟอร์ม
+ตอบเป็นภาษาไทย
+นำคอนเทนต์ต้นฉบับมา Remix ใหม่สำหรับทุก Platform:
+
+แต่ละ Platform ต้อง:
+1. **Facebook** — โพสต์ยาว เล่าเรื่อง มี CTA
+2. **Instagram** — Caption สั้น + hashtags 15 อัน
+3. **TikTok** — Script 15 วินาที + hook แรง
+4. **X/Twitter** — Thread 3-5 ข้อความ สั้นๆ กระชับ
+5. **YouTube** — Script ยาว + description + tags`,
+      `Remix คอนเทนต์นี้:\n\n${original.content.substring(0, 2000)}`,
+      { name: 'Content Remixer', department: 'Creative' }
+    );
+    _showAIResult('🔄', 'Content Remix', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
 }
 
 // ===== 💾 Backup & Restore =====
