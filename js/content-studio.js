@@ -548,11 +548,19 @@ function _getTopicInput() {
   return 'เทคนิคขายของออนไลน์ให้ปังในปี 2024';
 }
 
+// Timeout wrapper — skip if AI doesn't respond in 30s
+function _callAIWithTimeout(system, prompt, agent, timeoutMs = 30000) {
+  return Promise.race([
+    callAIWithFailover(system, prompt, agent),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout (' + (timeoutMs/1000) + 's) — ลองใหม่อีกครั้ง')), timeoutMs))
+  ]);
+}
+
 // 1. 🔍 Trend Hunter — Scan Trends
 async function aiScanTrends() {
   _showAILoading('🔍', 'Trend Hunter', 'กำลังสแกนเทรนด์...');
   try {
-    const result = await callAIWithFailover(
+    const result = await _callAIWithTimeout(
       `คุณคือ Trend Hunter ผู้เชี่ยวชาญด้านการจับเทรนด์ออนไลน์
 ตอบเป็นภาษาไทย ให้รายงาน Hot Topics 5 อันดับที่มาแรงตอนนี้
 แต่ละหัวข้อต้องมี:
@@ -574,7 +582,7 @@ async function aiAudienceInsight() {
   const topic = _getTopicInput();
   _showAILoading('🧠', 'Audience Insight Planner', 'กำลังวิเคราะห์กลุ่มเป้าหมาย...');
   try {
-    const result = await callAIWithFailover(
+    const result = await _callAIWithTimeout(
       `คุณคือ Audience Insight Planner ผู้เชี่ยวชาญด้านพฤติกรรมผู้บริโภค
 ตอบเป็นภาษาไทย วิเคราะห์กลุ่มเป้าหมายสำหรับหัวข้อที่ให้มา:
 1. Pain Points — เจ็บตรงไหน 3 ข้อ
@@ -596,7 +604,7 @@ async function aiWritePost() {
   const topic = _getTopicInput();
   _showAILoading('✍️', 'Content Writer', 'กำลังเขียนโพสต์...');
   try {
-    const result = await callAIWithFailover(
+    const result = await _callAIWithTimeout(
       `คุณคือ Content Writer มืออาชีพ
 ตอบเป็นภาษาไทย เขียนโพสต์ Facebook ฉบับเต็มจากหัวข้อที่ให้มา:
 - เปิดด้วย Hook แรงๆ ให้หยุดเลื่อน
@@ -618,7 +626,7 @@ async function aiGenerateHooks() {
   const topic = _getTopicInput();
   _showAILoading('🎣', 'Hook & Copy Specialist', 'กำลังสร้าง Hook...');
   try {
-    const result = await callAIWithFailover(
+    const result = await _callAIWithTimeout(
       `คุณคือ Hook & Copy Specialist ผู้เชี่ยวชาญการเขียนพาดหัว
 ตอบเป็นภาษาไทย สร้าง Hook 5 เวอร์ชันจากหัวข้อที่ให้:
 
@@ -641,7 +649,7 @@ async function aiVisualBrief() {
   const topic = _getTopicInput();
   _showAILoading('🎨', 'Visual Designer', 'กำลังออกแบบ Visual Brief...');
   try {
-    const result = await callAIWithFailover(
+    const result = await _callAIWithTimeout(
       `คุณคือ Visual Designer ผู้เชี่ยวชาญด้านออกแบบ
 ตอบเป็นภาษาไทย สร้าง Visual Brief สำหรับหัวข้อที่ให้:
 
@@ -671,7 +679,7 @@ async function aiVideoScript() {
   const topic = _getTopicInput();
   _showAILoading('🎬', 'Video Script Producer', 'กำลังเขียน Script คลิปสั้น...');
   try {
-    const result = await callAIWithFailover(
+    const result = await _callAIWithTimeout(
       `คุณคือ Video Script Producer ผู้เชี่ยวชาญเขียนสคริปต์คลิปสั้น
 ตอบเป็นภาษาไทย แตกหัวข้อ 1 ชิ้นเป็น 3 คลิปสั้น:
 
@@ -701,7 +709,7 @@ async function aiWeeklyAnalysis() {
 
   _showAILoading('📊', 'Performance Analyst', 'กำลังวิเคราะห์ผลงาน...');
   try {
-    const result = await callAIWithFailover(
+    const result = await _callAIWithTimeout(
       `คุณคือ Performance Analyst ผู้เชี่ยวชาญวิเคราะห์คอนเทนต์
 ตอบเป็นภาษาไทย วิเคราะห์ข้อมูลคอนเทนต์ที่ให้มา:
 
@@ -805,7 +813,7 @@ async function aiAutoWorkflow() {
     }
 
     try {
-      const result = await callAIWithFailover(step.system, userPrompt, { name: step.name, department: 'Content' });
+      const result = await _callAIWithTimeout(step.system, userPrompt, { name: step.name, department: 'Content' });
       results.push(result.response);
     } catch (e) {
       results.push(`❌ Error: ${e.message}`);

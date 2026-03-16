@@ -71,7 +71,7 @@ function renderStatusTag(status) {
   const map = { idle: ['tag-info','Idle'], working: ['tag-success','Working'], meeting: ['tag-warning','Meeting'],
     offline: ['tag-danger','Offline'], backlog: ['tag-info','Backlog'], todo: ['tag-purple','To Do'],
     in_progress: ['tag-warning','In Progress'], review: ['tag-cyan','Review'], done: ['tag-success','Done'],
-    completed: ['tag-success','Completed'], scheduled: ['tag-info','Scheduled'], in_progress: ['tag-warning','In Progress'] };
+    completed: ['tag-success','Completed'], scheduled: ['tag-info','Scheduled'] };
   const [cls, label] = map[status] || ['tag-info', status];
   return `<span class="tag ${cls}">${label}</span>`;
 }
