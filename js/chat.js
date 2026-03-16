@@ -217,7 +217,15 @@ function getAIModelLabel(modelId) {
 function renderChat() {
   const agents = Store.get('agents');
   const messages = Store.get('messages');
-  if (!selectedChatAgent && agents.length) selectedChatAgent = agents[0].id;
+  if (!selectedChatAgent && agents.length) {
+    // Auto-select CEO agent from settings
+    const ceoSettings = JSON.parse(localStorage.getItem('ceo-settings') || '{}');
+    if (ceoSettings.ceoAgent && agents.find(a => a.id === ceoSettings.ceoAgent)) {
+      selectedChatAgent = ceoSettings.ceoAgent;
+    } else {
+      selectedChatAgent = agents[0].id;
+    }
+  }
 
   const agentMsgs = messages.filter(m => m.from === selectedChatAgent || m.to === selectedChatAgent);
   const currentAgent = Store.getAgent(selectedChatAgent);
@@ -231,7 +239,7 @@ function renderChat() {
     <div class="chat-container">
       <div class="chat-sidebar">
         <div style="padding:14px;border-bottom:1px solid var(--border)">
-          <h3 style="font-size:14px;font-weight:700;margin-bottom:8px">💬 Agent Channels</h3>
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:8px">👔 CEO Chat</h3>
           <input class="form-input" style="padding:7px 10px;font-size:12px" placeholder="Search..." 
                  oninput="filterChatAgents(this.value)" id="chatAgentSearch" />
         </div>

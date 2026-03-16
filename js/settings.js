@@ -1,16 +1,17 @@
 // ===== Settings Tab — Premium Upgrade =====
-let activeSettingsTab = 'general';
+let activeSettingsTab = 'ceo';
 
 function renderSettings() {
   const settings = Store.get('settings');
   const tabs = [
+    { id: 'ceo', icon: '👔', label: 'CEO Settings', desc: 'เลือก CEO & ตั้งค่าระบบ' },
+    { id: 'api', icon: '🔑', label: 'API Keys', desc: 'ตั้งค่า AI Provider' },
     { id: 'general', icon: '🏢', label: t('general') || 'General', desc: 'Company & preferences' },
-    { id: 'cli', icon: '🖥️', label: 'CLI Tools', desc: 'Provider management' },
-    { id: 'api', icon: '🔑', label: 'API Keys', desc: 'Secure credentials' },
     { id: 'appearance', icon: '🎨', label: t('appearance') || 'Appearance', desc: 'Theme & display' },
     { id: 'notifications', icon: '🔔', label: t('notifications') || 'Notifications', desc: 'Alert preferences' },
-    { id: 'oauth', icon: '🔐', label: 'OAuth', desc: 'Third-party auth' },
     { id: 'advanced', icon: '⚙️', label: 'Advanced', desc: 'System & data' },
+    { id: 'cli', icon: '🖥️', label: 'CLI Tools', desc: 'Provider management' },
+    { id: 'oauth', icon: '🔐', label: 'OAuth', desc: 'Third-party auth' },
   ];
 
   document.getElementById('tab-settings').innerHTML = `
@@ -48,6 +49,7 @@ function renderSettings() {
         `).join('')}
       </div>
       <div class="settings-content">
+        ${activeSettingsTab === 'ceo' ? renderSettingsCEO() : ''}
         ${activeSettingsTab === 'general' ? renderSettingsGeneral() : ''}
         ${activeSettingsTab === 'cli' ? renderSettingsCLI() : ''}
         ${activeSettingsTab === 'api' ? renderSettingsAPI() : ''}
@@ -57,6 +59,131 @@ function renderSettings() {
         ${activeSettingsTab === 'advanced' ? renderSettingsAdvanced() : ''}
       </div>
     </div>`;
+}
+
+function renderSettingsCEO() {
+  const ceoSettings = JSON.parse(localStorage.getItem('ceo-settings') || '{}');
+  const agents = Store.get('agents');
+  const ceoAgentId = ceoSettings.ceoAgent || '';
+  const ceoName = ceoSettings.ceoName || '';
+  const defaultPlatforms = ceoSettings.platforms || ['Facebook','Instagram','TikTok','YouTube'];
+  const autoSchedule = ceoSettings.autoSchedule || false;
+
+  return `
+    <div class="sett-section-header">
+      <h3 class="sett-section-title">👔 CEO Settings</h3>
+      <p class="sett-section-desc">ตั้งค่าประธานบริษัท เลือก Agent ที่เป็น CEO และตั้งค่า Platform เริ่มต้น</p>
+    </div>
+
+    <div class="sett-card">
+      <div class="sett-card-header">
+        <span class="sett-card-icon">👔</span>
+        <div class="sett-card-title">ชื่อ CEO</div>
+      </div>
+      <div class="sett-card-body">
+        <div class="sett-field">
+          <label class="sett-label">ชื่อที่แสดงบน Dashboard</label>
+          <input class="sett-input" type="text" id="ceoNameInput" value="${ceoName}" placeholder="เช่น: CEO Pao" onchange="_saveCEOSetting('ceoName', this.value)" />
+        </div>
+      </div>
+    </div>
+
+    <div class="sett-card" style="margin-top:12px">
+      <div class="sett-card-header">
+        <span class="sett-card-icon">🤖</span>
+        <div class="sett-card-title">เลือก Agent ที่เป็น CEO</div>
+      </div>
+      <div class="sett-card-body">
+        <div class="sett-field">
+          <label class="sett-label">Agent หลัก (ใช้ใน CEO Chat)</label>
+          <select class="sett-input" id="ceoAgentSelect" onchange="_saveCEOSetting('ceoAgent', this.value)">
+            <option value="">เลือก Agent...</option>
+            ${agents.map(a => `<option value="${a.id}" ${ceoAgentId === a.id ? 'selected' : ''}>${a.avatar} ${a.name} (${a.department})</option>`).join('')}
+          </select>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px">💡 Agent ที่เลือกจะถูกเลือกอัตโนมัติเมื่อเปิดหน้าแชท</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sett-card" style="margin-top:12px">
+      <div class="sett-card-header">
+        <span class="sett-card-icon">🎯</span>
+        <div class="sett-card-title">Platform เริ่มต้น</div>
+      </div>
+      <div class="sett-card-body">
+        <div class="sett-field">
+          <label class="sett-label">เลือก Platform ที่จะถูกเลือกอัตโนมัติใน CEO Mode</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+            ${['Facebook','Instagram','TikTok','YouTube'].map(p => {
+              const icons = {Facebook:'📘',Instagram:'📸',TikTok:'🎵',YouTube:'📺'};
+              const checked = defaultPlatforms.includes(p);
+              return `<label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg-input);border-radius:8px;cursor:pointer;border:1px solid ${checked?'var(--accent)':'var(--border)'};font-size:12px">
+                <input type="checkbox" ${checked?'checked':''} onchange="_toggleCEOPlatform('${p}', this.checked)" />
+                <span style="font-size:18px">${icons[p]}</span>
+                <span style="font-weight:600">${p}</span>
+              </label>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sett-card" style="margin-top:12px">
+      <div class="sett-card-header">
+        <span class="sett-card-icon">📅</span>
+        <div class="sett-card-title">ตั้งค่าเพิ่มเติม</div>
+      </div>
+      <div class="sett-card-body">
+        <div class="sett-field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" ${autoSchedule?'checked':''} onchange="_saveCEOSetting('autoSchedule', this.checked)" />
+            <span style="font-size:12px;font-weight:600">Auto-Schedule — เพิ่มเข้า Calendar อัตโนมัติหลังสร้างคอนเทนต์</span>
+          </label>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:6px">💡 เมื่อ CEO Mode สร้างคอนเทนต์เสร็จ ระบบจะเพิ่มเข้า Calendar อัตโนมัติ</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sett-card" style="margin-top:12px">
+      <div class="sett-card-header">
+        <span class="sett-card-icon">👥</span>
+        <div class="sett-card-title">Team Overview</div>
+      </div>
+      <div class="sett-card-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
+          ${agents.map(a => `
+            <div style="padding:10px;background:var(--bg-input);border-radius:8px;text-align:center;border:${a.id===ceoAgentId?'2px solid var(--accent)':'1px solid var(--border)'}">
+              <div style="font-size:24px">${a.avatar}</div>
+              <div style="font-size:11px;font-weight:700;margin-top:4px">${a.name}</div>
+              <div style="font-size:9px;color:var(--text-muted)">${a.department}</div>
+              <div style="font-size:8px;margin-top:4px;padding:2px 6px;border-radius:4px;display:inline-block;background:${a.status==='working'?'rgba(34,197,94,0.1)':'rgba(156,163,175,0.1)'};color:${a.status==='working'?'#22c55e':'#9ca3af'}">${a.status==='working'?'🟢 Active':'⚫ Idle'}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function _saveCEOSetting(key, value) {
+  const settings = JSON.parse(localStorage.getItem('ceo-settings') || '{}');
+  settings[key] = value;
+  localStorage.setItem('ceo-settings', JSON.stringify(settings));
+  showToast(`✅ บันทึก ${key} แล้ว`, 'success');
+  if (key === 'ceoName') {
+    const el = document.getElementById('ceoName');
+    if (el) el.textContent = value || 'CEO Admin';
+  }
+}
+
+function _toggleCEOPlatform(platform, checked) {
+  const settings = JSON.parse(localStorage.getItem('ceo-settings') || '{}');
+  let platforms = settings.platforms || ['Facebook','Instagram','TikTok','YouTube'];
+  if (checked && !platforms.includes(platform)) platforms.push(platform);
+  if (!checked) platforms = platforms.filter(p => p !== platform);
+  settings.platforms = platforms;
+  localStorage.setItem('ceo-settings', JSON.stringify(settings));
+  showToast(`✅ ${platform} ${checked ? 'เปิดใช้' : 'ปิด'}`, 'success');
 }
 
 function renderSettingsGeneral() {
