@@ -225,12 +225,12 @@ function renderSettingsAPI() {
 
 function renderSettingsAppearance() {
   const currentTheme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
-  const fontSize = localStorage.getItem('fontSize') || '14';
-  const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-  const animations = localStorage.getItem('animations') !== 'false';
-  const soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
-  const colorTheme = localStorage.getItem('colorTheme') || 'neon';
-  const particlesOn = localStorage.getItem('particlesEnabled') === 'true';
+  const fontSize = Store.pref('fontSize') || '14';
+  const sidebarCollapsed = Store.pref('sidebarCollapsed') === true;
+  const animations = Store.pref('animations') !== false;
+  const soundEnabled = Store.pref('soundEnabled') !== false;
+  const colorTheme = Store.pref('colorTheme') || 'neon';
+  const particlesOn = Store.pref('particlesEnabled') === true;
 
   const themes = [
     { id: 'neon', name: 'Default Neon', icon: '💜', accent: '#6366f1', bg: '#0a0e1a', secondary: '#818cf8' },
@@ -334,7 +334,7 @@ function renderSettingsAppearance() {
             <div class="sett-toggle-desc">Enable smooth transitions and micro-animations</div>
           </div>
           <label class="sett-switch">
-            <input type="checkbox" ${animations ? 'checked' : ''} onchange="localStorage.setItem('animations', this.checked); showToast(this.checked ? 'Animations enabled ✨' : 'Animations disabled', 'info')" />
+            <input type="checkbox" ${animations ? 'checked' : ''} onchange="Store.setPref('animations', this.checked); showToast(this.checked ? 'Animations enabled ✨' : 'Animations disabled', 'info')" />
             <span class="sett-switch-slider"></span>
           </label>
         </div>
@@ -344,7 +344,7 @@ function renderSettingsAppearance() {
             <div class="sett-toggle-desc">Play sounds for notifications and interactions</div>
           </div>
           <label class="sett-switch">
-            <input type="checkbox" ${soundEnabled ? 'checked' : ''} onchange="localStorage.setItem('soundEnabled', this.checked); showToast(this.checked ? 'Sounds enabled 🔊' : 'Sounds muted 🔇', 'info')" />
+            <input type="checkbox" ${soundEnabled ? 'checked' : ''} onchange="Store.setPref('soundEnabled', this.checked); showToast(this.checked ? 'Sounds enabled 🔊' : 'Sounds muted 🔇', 'info')" />
             <span class="sett-switch-slider"></span>
           </label>
         </div>
@@ -354,7 +354,7 @@ function renderSettingsAppearance() {
             <div class="sett-toggle-desc">Use icon-only sidebar for more workspace</div>
           </div>
           <label class="sett-switch">
-            <input type="checkbox" ${sidebarCollapsed ? 'checked' : ''} onchange="localStorage.setItem('sidebarCollapsed', this.checked); showToast('Sidebar preference saved 📐','info')" />
+            <input type="checkbox" ${sidebarCollapsed ? 'checked' : ''} onchange="Store.setPref('sidebarCollapsed', this.checked); showToast('Sidebar preference saved 📐','info')" />
             <span class="sett-switch-slider"></span>
           </label>
         </div>
@@ -367,7 +367,7 @@ function renderSettingsAppearance() {
 }
 
 function renderSettingsNotifications() {
-  const notifPrefs = JSON.parse(localStorage.getItem('notifPrefs') || '{}');
+  const notifPrefs = Store.pref('notifPrefs') || {};
   const channels = [
     { id: 'taskComplete', name: '✅ Task Completed', desc: 'When an agent finishes a task', default: true },
     { id: 'agentLevelUp', name: '🎉 Agent Level Up', desc: 'When an agent gains a level', default: true },
@@ -617,9 +617,9 @@ function saveApiKey(key) {
 }
 
 function saveNotifPref(id, value) {
-  const prefs = JSON.parse(localStorage.getItem('notifPrefs') || '{}');
+  const prefs = Store.pref('notifPrefs') || {};
   prefs[id] = value;
-  localStorage.setItem('notifPrefs', JSON.stringify(prefs));
+  Store.setPref('notifPrefs', prefs);
   showToast(value ? 'Notification enabled ✅' : 'Notification disabled 🔕', 'info');
 }
 
@@ -627,9 +627,11 @@ function setTheme(theme) {
   if (theme === 'light') {
     document.body.classList.add('light-theme');
     localStorage.setItem('theme', 'light');
+    Store.setPref('theme', 'light');
   } else {
     document.body.classList.remove('light-theme');
     localStorage.setItem('theme', 'dark');
+    Store.setPref('theme', 'dark');
   }
   showToast(`Theme: ${theme === 'light' ? '☀️ Light' : '🌙 Dark'} mode`, 'info');
   renderSettings();
@@ -637,7 +639,7 @@ function setTheme(theme) {
 
 function saveFontSize() {
   const size = document.getElementById('settFontSize')?.value || '14';
-  localStorage.setItem('fontSize', size);
+  Store.setPref('fontSize', size);
   document.documentElement.style.fontSize = size + 'px';
   showToast('Appearance saved! 🎨', 'success');
 }
@@ -714,7 +716,7 @@ function applyColorTheme(themeId) {
   r.style.setProperty('--bg-sidebar', t.bgSidebar);
   r.style.setProperty('--bg-input', t.bgInput);
   r.style.setProperty('--border', t.border);
-  localStorage.setItem('colorTheme', themeId);
+  Store.setPref('colorTheme', themeId);
   // Update particle colors if active
   if (document.getElementById('particleCanvas')) {
     toggleParticleBackground(false);
@@ -726,7 +728,7 @@ function applyColorTheme(themeId) {
 
 // Restore theme on page load
 (function() {
-  const saved = localStorage.getItem('colorTheme');
+  const saved = Store.pref('colorTheme');
   if (saved && COLOR_THEMES[saved]) {
     const t = COLOR_THEMES[saved];
     const r = document.documentElement;
@@ -747,7 +749,7 @@ function applyColorTheme(themeId) {
 let particleAnimId = null;
 
 function toggleParticleBackground(enabled) {
-  localStorage.setItem('particlesEnabled', enabled);
+  Store.setPref('particlesEnabled', enabled);
   const existing = document.getElementById('particleCanvas');
   if (!enabled) {
     if (existing) existing.remove();
@@ -814,7 +816,7 @@ function toggleParticleBackground(enabled) {
 
 // Auto-start particles if enabled
 (function() {
-  if (localStorage.getItem('particlesEnabled') === 'true') {
+  if (Store.pref('particlesEnabled') === true) {
     setTimeout(() => toggleParticleBackground(true), 500);
   }
 })();

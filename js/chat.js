@@ -29,8 +29,24 @@ async function checkBackendProviders() {
 }
 
 // Call AI via backend proxy
-async function callBackendProxy(systemPrompt, userText) {
-  const messages = [{ role: 'user', content: userText }];
+async function callBackendProxy(systemPrompt, userText, agent) {
+  // Build conversation history (last 10 messages for context)
+  const messages = [];
+  if (agent) {
+    const history = Store.get('messages')
+      .filter(m => (m.from === agent.id || m.to === agent.id) && !m.isTyping)
+      .slice(-10);
+    history.forEach(m => {
+      messages.push({
+        role: m.from === 'ceo' ? 'user' : 'assistant',
+        content: m.text
+      });
+    });
+  }
+  // Always end with the current user message
+  if (!messages.length || messages[messages.length - 1].content !== userText) {
+    messages.push({ role: 'user', content: userText });
+  }
   // Get auth token from Supabase session
   const headers = { 'Content-Type': 'application/json' };
   if (window.supabaseClient) {
@@ -71,7 +87,7 @@ async function callAIWithFailover(systemPrompt, userText, agent) {
     try {
       if (_backendAvailable === null) await checkBackendProviders();
       if (_backendAvailable) {
-        const data = await callBackendProxy(systemPrompt, userText);
+        const data = await callBackendProxy(systemPrompt, userText, agent);
         console.log(`🚀 Backend proxy → ${data.provider} (${data.model})`);
         return { response: data.response, provider: { name: data.provider, icon: '🚀', label: data.model, type: 'backend' }, failovers: 0 };
       }

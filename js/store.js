@@ -17,6 +17,15 @@ const Store = {
       theme: 'dark',
       autoUpdateEnabled: false,
       apiKeys: {},
+      preferences: {
+        fontSize: '14',
+        sidebarCollapsed: false,
+        animations: true,
+        soundEnabled: true,
+        colorTheme: 'neon',
+        particlesEnabled: false,
+        notifPrefs: {},
+      }
     }
   },
   _listeners: [],
@@ -121,6 +130,12 @@ const Store = {
   init() {
     // Load from localStorage immediately (fast)
     this._load();
+    // Ensure settings.preferences exists
+    if (!this._state.settings.preferences) {
+      this._state.settings.preferences = { fontSize: '14', sidebarCollapsed: false, animations: true, soundEnabled: true, colorTheme: 'neon', particlesEnabled: false, notifPrefs: {} };
+    }
+    // Migrate old scattered localStorage keys into Store
+    this._migratePrefs();
     if (this._state.agents.length === 0) this._seedData();
   },
 
@@ -253,4 +268,47 @@ const Store = {
   getTasksForAgent(agentId) { return this._state.tasks.filter(function(t) { return t.assignee === agentId; }); },
   getDeptInfo(id) { return DEPARTMENTS.find(function(d) { return d.id === id; }); },
   getProviderInfo(id) { return PROVIDERS.find(function(p) { return p.id === id; }); },
+
+  // ===== Preferences helpers =====
+  pref(key) {
+    var prefs = this._state.settings && this._state.settings.preferences;
+    if (!prefs) return undefined;
+    return prefs[key];
+  },
+  setPref(key, value) {
+    if (!this._state.settings.preferences) this._state.settings.preferences = {};
+    this._state.settings.preferences[key] = value;
+    this._save();
+    this._notify('settings');
+  },
+
+  // Migrate old localStorage keys into Store settings.preferences
+  _migratePrefs() {
+    var migrated = false;
+    var prefs = this._state.settings.preferences;
+    var keys = [
+      { ls: 'fontSize', pref: 'fontSize', type: 'string' },
+      { ls: 'sidebarCollapsed', pref: 'sidebarCollapsed', type: 'bool' },
+      { ls: 'animations', pref: 'animations', type: 'bool' },
+      { ls: 'soundEnabled', pref: 'soundEnabled', type: 'bool' },
+      { ls: 'colorTheme', pref: 'colorTheme', type: 'string' },
+      { ls: 'particlesEnabled', pref: 'particlesEnabled', type: 'bool' },
+      { ls: 'theme', pref: 'theme', type: 'string' },
+      { ls: 'notifPrefs', pref: 'notifPrefs', type: 'json' },
+    ];
+    keys.forEach(function(k) {
+      var val = localStorage.getItem(k.ls);
+      if (val !== null) {
+        if (k.type === 'bool') prefs[k.pref] = val === 'true';
+        else if (k.type === 'json') { try { prefs[k.pref] = JSON.parse(val); } catch(e) {} }
+        else prefs[k.pref] = val;
+        localStorage.removeItem(k.ls);
+        migrated = true;
+      }
+    });
+    if (migrated) {
+      console.log('[Store] Migrated preferences to Store');
+      this._save();
+    }
+  },
 };

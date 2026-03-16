@@ -217,12 +217,20 @@ async function callAnthropic(apiKey, model, messages, system) {
 
 async function callGemini(apiKey, model, messages, system) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  const parts = messages.map(m => ({ text: (m.role === 'user' ? '' : '[AI] ') + m.content }));
-  if (system) parts.unshift({ text: '[System] ' + system });
+  // Build proper multi-turn conversation
+  const contents = messages.map(m => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.content }]
+  }));
+  const body = {
+    contents,
+    generationConfig: { maxOutputTokens: 2048, temperature: 0.7 }
+  };
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 2048, temperature: 0.7 } })
+    body: JSON.stringify(body)
   });
   if (!resp.ok) { const t = await resp.text(); throw new Error(`${resp.status}: ${t}`); }
   const data = await resp.json();
