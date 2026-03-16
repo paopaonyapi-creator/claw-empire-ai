@@ -1384,7 +1384,7 @@ async function executeCEOPlan() {
 5. #️⃣ Hashtags แนะนำ 10 อัน
 6. 📊 แนะนำเวลาโพสต์ที่ดีที่สุด`;
 
-    const analysisResult = await callAIWithFailover(ceoSystemPrompt, `วิเคราะห์หัวข้อ: ${topic}`, { id: 'ceo', name: 'CEO', department: 'Executive' });
+    const analysisResult = await callAIWithFailover(ceoSystemPrompt, `วิเคราะห์หัวข้อ: ${topic}`, null);
     const brief = analysisResult?.response || 'ไม่สามารถวิเคราะห์ได้';
     log(`✅ Step 1 เสร็จ! CEO วิเคราะห์แล้ว (${analysisResult?.provider?.name || 'AI'})`);
 
@@ -1404,7 +1404,7 @@ async function executeCEOPlan() {
       const contentResult = await callAIWithFailover(
         `คุณคือผู้เชี่ยวชาญด้านคอนเทนต์สำหรับ ${plat}`, 
         `จาก CEO Brief:\n${brief}\n\n${platPrompts[plat]}`, 
-        { id: `content-${plat}`, name: plat + ' Writer', department: 'Content' }
+        null
       );
       results[plat] = contentResult?.response || `ไม่สามารถสร้างคอนเทนต์ ${plat} ได้`;
       log(`✅ ${plat} เสร็จ! (${contentResult?.provider?.name || 'AI'})`);
