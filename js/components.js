@@ -1,5 +1,5 @@
 // ===== Shared UI Components =====
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', duration = 3000) {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
@@ -7,17 +7,30 @@ function showToast(message, type = 'info') {
   toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${message}</span>`;
   container.appendChild(toast);
   setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)';
-    setTimeout(() => toast.remove(), 300); }, 3000);
+    setTimeout(() => toast.remove(), 300); }, duration);
 }
 
 function showModal(title, content, actions = []) {
   const overlay = document.getElementById('modalOverlay');
   const container = document.getElementById('modalContainer');
+
+  // Handle both signatures: showModal(htmlContent) and showModal(title, content, actions)
+  let hasTitle = true;
+  if (content === undefined || (typeof content !== 'string' && !Array.isArray(content))) {
+    // Called as showModal(contentHtml) — content-only mode
+    content = title;
+    title = '';
+    hasTitle = false;
+    if (typeof arguments[1] === 'object' && Array.isArray(arguments[1])) {
+      actions = arguments[1];
+    }
+  }
+
   container.innerHTML = `
-    <div class="modal-header">
+    ${hasTitle && title ? `<div class="modal-header">
       <h3 class="modal-title">${title}</h3>
       <button class="modal-close" onclick="closeModal()">&times;</button>
-    </div>
+    </div>` : `<div style="display:flex;justify-content:flex-end;padding:8px 8px 0"><button class="modal-close" onclick="closeModal()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">&times;</button></div>`}
     <div class="modal-body">${content}</div>
     ${actions.length ? `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
       ${actions.map(a => `<button class="btn ${a.class || ''}" onclick="${a.onclick}">${a.label}</button>`).join('')}

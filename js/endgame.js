@@ -259,8 +259,7 @@ function showPrestigePanel() {
         </button>
       </div>
 
-      > [!WARNING]
-      > <div style="padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;font-size:11px;color:#ef4444">
+      <div style="padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;font-size:11px;color:#ef4444;border:1px solid rgba(239,68,68,0.2)">
         ⚠️ Prestige will reset: coins, tasks, agent levels. You keep: agents, skills, prestige bonuses.
       </div>
     </div>
