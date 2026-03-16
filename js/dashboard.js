@@ -3,6 +3,7 @@ function renderDashboard() {
   const agents = Store.get('agents');
   const tasks = Store.get('tasks');
   const meetings = Store.get('meetings');
+  const economy = Store.get('economy') || { coins: 5000, totalEarned: 0, totalSpent: 0 };
 
   const activeAgents = agents.filter(a => a.status === 'working').length;
   const completedTasks = tasks.filter(t => t.status === 'done').length;
@@ -46,7 +47,7 @@ function renderDashboard() {
     </div>
 
     <!-- KPI Cards -->
-    <div class="grid-4" style="margin-bottom:24px">
+    <div class="grid-4" style="margin-bottom:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
       <div class="kpi-card accent">
         <div class="kpi-icon">🤖</div>
         <div style="display:flex;justify-content:space-between;align-items:flex-end">
@@ -89,6 +90,17 @@ function renderDashboard() {
             <div class="kpi-change down">↓ 1 ${t('cancelled')}</div>
           </div>
           ${renderMiniChart(sparkData4, '#3b82f6')}
+        </div>
+      </div>
+      <div class="kpi-card" style="border-left:3px solid #f59e0b">
+        <div class="kpi-icon">💰</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-end">
+          <div>
+            <div class="kpi-value">${economy.coins?.toLocaleString() || 0}</div>
+            <div class="kpi-label">Coins 🪙</div>
+            <div class="kpi-change up">+${economy.totalEarned?.toLocaleString() || 0} earned</div>
+          </div>
+          <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-size:11px" onclick="showMarketplace()">🏬 Shop</button>
         </div>
       </div>
     </div>

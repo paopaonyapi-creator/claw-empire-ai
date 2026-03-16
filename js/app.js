@@ -461,13 +461,22 @@
           tasks[taskIdx].completedAt = Date.now();
           agents[idx].tasksCompleted = (agents[idx].tasksCompleted || 0) + 1;
 
+          // 💰 Earn coins for task completion
+          const reward = 50 + (agent.level * 10);
+          Store.update('economy', eco => ({
+            ...eco,
+            coins: (eco.coins || 0) + reward,
+            totalEarned: (eco.totalEarned || 0) + reward,
+            income: (eco.income || 0) + reward,
+          }));
+
           // Add activity notification
           Store.update('notifications', ns => [{
-            id: generateId(), text: `${agent.name} completed "${taskToComplete.title}" ✅`,
+            id: generateId(), text: `${agent.name} completed "${taskToComplete.title}" ✅ +${reward} 🪙`,
             type: 'success', ts: Date.now(), read: false
           }, ...ns]);
           if (typeof showLiveNotification === 'function') {
-            showLiveNotification('✅', `${agent.name} เสร็จงาน!`, `"${taskToComplete.title}"`, 'success');
+            showLiveNotification('✅', `${agent.name} เสร็จงาน!`, `"${taskToComplete.title}" +${reward} 🪙`, 'success');
           }
 
           Store.set('tasks', tasks);
@@ -602,3 +611,174 @@ function checkAchievements(agent) {
     }
   });
 }
+
+// ===== 🏬 Agent Marketplace =====
+const MARKETPLACE_ITEMS = [
+  { id: 'agent_ninja', name: '🥷 Ninja Dev', desc: 'Elite stealth coder — 2x task speed', cost: 2000, type: 'agent',
+    agent: { name: 'Ninja', department: 'engineering', provider: 'gemini', model: 'gemini-2.5-flash', level: 5, xp: 0, xpMax: 1200, skills: ['Stealth Ops', 'Full-Stack Dev'] } },
+  { id: 'agent_oracle', name: '🔮 Oracle AI', desc: 'Data prophet — predicts trends', cost: 3000, type: 'agent',
+    agent: { name: 'Oracle', department: 'analytics', provider: 'openai', model: 'gpt-4o', level: 7, xp: 0, xpMax: 1500, skills: ['Analytics', 'AI/ML'] } },
+  { id: 'agent_phoenix', name: '🔥 Phoenix', desc: 'Marketing fire — viral campaigns', cost: 2500, type: 'agent',
+    agent: { name: 'Phoenix', department: 'marketing', provider: 'gemini', model: 'gemini-2.5-flash', level: 4, xp: 0, xpMax: 1100, skills: ['Marketing', 'Growth Hacking'] } },
+  { id: 'xp_boost', name: '⚡ XP Boost Pack', desc: '+500 XP to all agents', cost: 1500, type: 'boost' },
+  { id: 'coin_doubler', name: '💎 Coin Doubler', desc: 'Double coins for next 10 tasks', cost: 3000, type: 'perk',
+    perk: 'coinDoubler' },
+  { id: 'auto_complete', name: '🤖 Auto-Complete', desc: 'Instantly complete 3 random tasks', cost: 2000, type: 'action' },
+];
+
+function showMarketplace() {
+  const economy = Store.get('economy') || { coins: 5000 };
+  const purchased = JSON.parse(localStorage.getItem('marketplace_purchased') || '[]');
+
+  const items = MARKETPLACE_ITEMS.map(item => {
+    const owned = purchased.includes(item.id) && item.type === 'agent';
+    return `
+      <div style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:14px;
+        background:${owned ? 'rgba(34,197,94,0.1)' : 'var(--bg-input)'};
+        border:1px solid ${owned ? 'rgba(34,197,94,0.3)' : 'var(--border)'}">
+        <div style="font-size:36px">${item.name.split(' ')[0]}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">${item.name}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${item.desc}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:#f59e0b;font-size:14px">${item.cost} 🪙</div>
+          ${owned
+            ? '<span style="color:#22c55e;font-size:12px;font-weight:600">✅ Owned</span>'
+            : `<button class="btn btn-sm btn-primary" onclick="purchaseItem('${item.id}')"
+                ${economy.coins < item.cost ? 'disabled style="opacity:0.4"' : ''}>Buy</button>`
+          }
+        </div>
+      </div>`;
+  }).join('');
+
+  showModal(`
+    <div style="max-width:520px">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:48px">🏬</div>
+        <h3>Agent Marketplace</h3>
+        <p style="color:var(--text-muted);font-size:13px">Your balance: <strong style="color:#f59e0b">${economy.coins?.toLocaleString()} 🪙</strong></p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-height:400px;overflow-y:auto">
+        ${items}
+      </div>
+    </div>
+  `);
+  playSound('notification');
+}
+
+function purchaseItem(itemId) {
+  const item = MARKETPLACE_ITEMS.find(i => i.id === itemId);
+  if (!item) return;
+  const economy = Store.get('economy') || { coins: 5000, totalSpent: 0 };
+  if (economy.coins < item.cost) { showToast('❌ Not enough coins!', 'error'); return; }
+
+  // Deduct coins
+  Store.update('economy', eco => ({
+    ...eco,
+    coins: eco.coins - item.cost,
+    totalSpent: (eco.totalSpent || 0) + item.cost,
+    expenses: (eco.expenses || 0) + item.cost,
+  }));
+
+  if (item.type === 'agent') {
+    // Add new agent
+    const newAgent = {
+      id: generateId(),
+      ...item.agent,
+      status: 'active',
+      tasksCompleted: 0,
+      tasksFailed: 0,
+      lastActive: Date.now(),
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${item.agent.name}`,
+    };
+    Store.update('agents', agents => [...agents, newAgent]);
+    const purchased = JSON.parse(localStorage.getItem('marketplace_purchased') || '[]');
+    purchased.push(itemId);
+    localStorage.setItem('marketplace_purchased', JSON.stringify(purchased));
+    showToast(`🎉 ${item.name} joined your team!`, 'success', 4000);
+  } else if (item.type === 'boost') {
+    // XP boost to all agents
+    Store.update('agents', agents => agents.map(a => ({ ...a, xp: Math.min(a.xp + 500, a.xpMax) })));
+    showToast('⚡ +500 XP to all agents!', 'success', 3000);
+  } else if (item.type === 'action') {
+    // Auto-complete 3 tasks
+    const tasks = Store.get('tasks');
+    let completed = 0;
+    const updated = tasks.map(t => {
+      if (completed < 3 && (t.status === 'in_progress' || t.status === 'todo')) {
+        completed++;
+        return { ...t, status: 'done', completedAt: Date.now() };
+      }
+      return t;
+    });
+    Store.set('tasks', updated);
+    showToast(`🤖 Auto-completed ${completed} tasks!`, 'success', 3000);
+  } else if (item.type === 'perk') {
+    localStorage.setItem('perk_' + item.perk, JSON.stringify({ active: true, remaining: 10 }));
+    showToast(`💎 ${item.name} activated!`, 'success', 3000);
+  }
+
+  playSound('purchase');
+  closeModal();
+  if (typeof renderDashboard === 'function') renderDashboard();
+}
+
+// ===== 🔊 Enhanced Sound Effects =====
+// Override playSound with richer sounds
+(function enhanceSounds() {
+  const origPlaySound = window.playSound;
+  window.playSound = function(type) {
+    const settings = Store.get('settings');
+    if (settings?.preferences?.soundEnabled === false) return;
+
+    try {
+      const ctx = window._audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      window._audioCtx = ctx;
+
+      if (type === 'purchase') {
+        // Coin sound: ascending arpeggio
+        [523, 659, 784].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = freq;
+          osc.type = 'sine';
+          gain.gain.value = 0.08;
+          osc.start(ctx.currentTime + i * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.2);
+          osc.stop(ctx.currentTime + i * 0.1 + 0.2);
+        });
+      } else if (type === 'levelup') {
+        // Fanfare: major chord
+        [523, 659, 784, 1047].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = freq;
+          osc.type = 'triangle';
+          gain.gain.value = 0.06;
+          osc.start(ctx.currentTime + i * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+          osc.stop(ctx.currentTime + 0.5);
+        });
+      } else if (type === 'coin') {
+        // Quick coin clink
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 1200;
+        osc.type = 'sine';
+        gain.gain.value = 0.06;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+        osc.stop(ctx.currentTime + 0.1);
+      } else {
+        // Fall back to original
+        if (origPlaySound) origPlaySound(type);
+      }
+    } catch(e) {
+      if (origPlaySound) origPlaySound(type);
+    }
+  };
+})();

@@ -12,6 +12,7 @@ const Store = {
     reports: [],
     notifications: [],
     messengerChannels: [],
+    economy: { coins: 5000, totalEarned: 0, totalSpent: 0, income: 0, expenses: 0 },
     settings: {
       defaultProvider: 'claude',
       theme: 'dark',
