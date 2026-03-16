@@ -5,6 +5,9 @@
 [![Deploy](https://img.shields.io/badge/Live-claw--empire--ai.surge.sh-6366f1?style=for-the-badge)](https://claw-empire-ai.surge.sh)
 [![Railway](https://img.shields.io/badge/Backend-Railway-0B0D0E?style=for-the-badge&logo=railway)](https://railway.app)
 [![PWA](https://img.shields.io/badge/PWA-Installable-4CAF50?style=for-the-badge)]()
+[![CI/CD](https://github.com/paopaonyapi-creator/claw-empire-ai/actions/workflows/deploy.yml/badge.svg)](https://github.com/paopaonyapi-creator/claw-empire-ai/actions)
+
+![Dashboard Preview](screenshot.png)
 
 A virtual AI office simulator where you play as the CEO of an AI corporation. Manage departments, chat with AI-powered agents, assign tasks, and grow your empire.
 
@@ -22,6 +25,20 @@ A virtual AI office simulator where you play as the CEO of an AI corporation. Ma
 | ☁️ **Cloud Sync** | Supabase-powered cross-device sync |
 | 🔐 **Auth** | Google OAuth + Email login |
 | 📱 **PWA** | Installable as native app + offline support |
+
+## 💬 CEO Commands
+
+Chat with any agent and use `$` commands:
+
+| Command | Action |
+|---------|--------|
+| `$task Fix login bug` | Create task → Kanban |
+| `$done login bug` | Mark task as done (+25 XP) |
+| `$assign login to Nova` | Reassign task |
+| `$status busy` | Change agent status |
+| `$priority login high` | Set task priority |
+| `$report` | Agent status report |
+| `$help` | Show all commands |
 
 ## 🛠️ Tech Stack
 
