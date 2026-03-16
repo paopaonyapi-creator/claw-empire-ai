@@ -479,6 +479,12 @@
             showLiveNotification('✅', `${agent.name} เสร็จงาน!`, `"${taskToComplete.title}" +${reward} 🪙`, 'success');
           }
 
+          // Track daily quest progress
+          if (typeof addDailyProgress === 'function') {
+            addDailyProgress('tasksCompleted');
+            addDailyProgress('coinsEarned', reward);
+          }
+
           Store.set('tasks', tasks);
         }
       }

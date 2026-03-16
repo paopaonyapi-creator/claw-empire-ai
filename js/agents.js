@@ -17,7 +17,7 @@ function renderAgents() {
       <table class="agent-table" id="agentTable">
         <thead>
           <tr>
-            <th>Agent</th><th>Department</th><th>Provider</th><th>Status</th>
+            <th>Agent</th><th>Department</th><th>Provider</th><th>Mood</th><th>Status</th>
             <th>Level</th><th>Tasks</th><th>Actions</th>
           </tr>
         </thead>
@@ -40,6 +40,7 @@ function renderAgents() {
                 <div style="font-size:12px">${provider?.icon} ${provider?.name}</div>
                 <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">${agent.model}</div>
               </td>
+              <td>${typeof renderMoodBadge === 'function' ? renderMoodBadge(agent) : '😐'}</td>
               <td>${renderStatusTag(agent.status)}</td>
               <td>
                 <div style="font-weight:700">Lv.${agent.level}</div>
