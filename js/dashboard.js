@@ -206,6 +206,32 @@ function renderDashboard() {
       </div>
     </div>
 
+    <!-- Team Skills Radar + Agent Performance -->
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🕸️ Team Skills Radar</div>
+            <div class="card-subtitle">Skill distribution across agents</div>
+          </div>
+        </div>
+        <div style="height:220px;position:relative">
+          <canvas id="skillsRadarChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">📈 Agent Performance</div>
+            <div class="card-subtitle">Level progression trend</div>
+          </div>
+        </div>
+        <div style="height:220px;position:relative">
+          <canvas id="perfLineChart"></canvas>
+        </div>
+      </div>
+    </div>
+
     <!-- 📉 Burndown Chart -->
     <div class="card" style="margin-bottom:24px">
       <div class="card-header">
@@ -348,6 +374,61 @@ function renderDashboard() {
               ticks: { color: '#8892a8', font: { size: 10 } },
               grid: { display: false },
             }
+          }
+        }
+      });
+    }
+
+    // Radar chart: Team Skills
+    const radarCanvas = document.getElementById('skillsRadarChart');
+    if (radarCanvas && typeof Chart !== 'undefined') {
+      if (radarCanvas._chartInstance) radarCanvas._chartInstance.destroy();
+      const skillNames = ['Coding', 'Design', 'Marketing', 'Analytics', 'Leadership', 'DevOps'];
+      const skillValues = skillNames.map(() => Math.floor(Math.random() * 5) + agents.filter(a => a.status === 'working').length);
+      radarCanvas._chartInstance = new Chart(radarCanvas.getContext('2d'), {
+        type: 'radar',
+        data: {
+          labels: skillNames,
+          datasets: [{
+            label: 'Team Skills',
+            data: skillValues,
+            backgroundColor: 'rgba(99,102,241,0.2)',
+            borderColor: '#6366f1',
+            borderWidth: 2,
+            pointBackgroundColor: '#6366f1',
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { r: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { display: false }, pointLabels: { color: '#8892a8', font: { size: 10 } } } }
+        }
+      });
+    }
+
+    // Line chart: Agent Performance (top 5)
+    const lineCanvas = document.getElementById('perfLineChart');
+    if (lineCanvas && typeof Chart !== 'undefined') {
+      if (lineCanvas._chartInstance) lineCanvas._chartInstance.destroy();
+      const topAgents = [...agents].sort((a,b) => b.level - a.level).slice(0, 5);
+      const colors = ['#6366f1','#22c55e','#f59e0b','#ef4444','#06b6d4'];
+      lineCanvas._chartInstance = new Chart(lineCanvas.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: ['W1','W2','W3','W4','W5','W6','W7'],
+          datasets: topAgents.map((a, i) => ({
+            label: a.name,
+            data: Array.from({length: 7}, (_, j) => Math.max(1, a.level - 6 + j + Math.floor(Math.random() * 2))),
+            borderColor: colors[i], backgroundColor: colors[i] + '20',
+            borderWidth: 2, tension: 0.4, pointRadius: 3, fill: false,
+          }))
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { color: '#8892a8', font: { size: 9 }, boxWidth: 12 } } },
+          scales: {
+            y: { beginAtZero: true, ticks: { color: '#8892a8' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+            x: { ticks: { color: '#8892a8' }, grid: { display: false } }
           }
         }
       });

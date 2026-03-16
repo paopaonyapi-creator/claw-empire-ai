@@ -27,14 +27,14 @@
                 </div>
             </div>
 
-            <div class="sidebar-user">
+            <div class="sidebar-user" style="cursor:pointer" onclick="showCeoProfile()" title="View CEO Profile">
                 <div class="user-avatar" id="ceoAvatar">CEO</div>
                 <div class="user-info">
                     <span class="user-name" id="ceoName">CEO Admin</span>
-                    <span class="user-role" id="ceoRole">Chief Executive Officer</span>
+                    <span class="user-role" id="ceoRole"><span id="ceoLevelBadge" style="color:#f59e0b">⭐ Lv.1</span> · CEO</span>
                 </div>
                 <div class="online-indicator"></div>
-                <button onclick="handleLogout()" title="Logout" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:4px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">🚪</button>
+                <button onclick="event.stopPropagation();handleLogout()" title="Logout" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:4px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">🚪</button>
             </div>
 
             <nav class="sidebar-nav">

@@ -782,3 +782,97 @@ function purchaseItem(itemId) {
     }
   };
 })();
+
+// ===== 👤 CEO Profile & Stats =====
+function getCeoLevel() {
+  const eco = Store.get('economy') || { totalEarned: 0 };
+  const agents = Store.get('agents') || [];
+  const tasks = Store.get('tasks') || [];
+  const totalTasks = tasks.filter(t => t.status === 'done').length;
+  const totalXP = (eco.totalEarned || 0) + totalTasks * 20 + agents.length * 50;
+  const level = Math.max(1, Math.floor(totalXP / 500) + 1);
+  const xpInLevel = totalXP % 500;
+  return { level, xp: xpInLevel, xpMax: 500, totalXP, totalTasks, totalEarned: eco.totalEarned || 0 };
+}
+
+function getCeoRank(level) {
+  if (level >= 20) return { title: '👑 Legendary CEO', color: '#f59e0b' };
+  if (level >= 15) return { title: '💎 Executive', color: '#8b5cf6' };
+  if (level >= 10) return { title: '🏆 Director', color: '#22c55e' };
+  if (level >= 7) return { title: '⭐ Manager', color: '#06b6d4' };
+  if (level >= 4) return { title: '📊 Team Lead', color: '#3b82f6' };
+  if (level >= 2) return { title: '💼 Junior CEO', color: '#818cf8' };
+  return { title: '🔰 Intern CEO', color: '#8892a8' };
+}
+
+function showCeoProfile() {
+  const ceo = getCeoLevel();
+  const rank = getCeoRank(ceo.level);
+  const agents = Store.get('agents') || [];
+  const eco = Store.get('economy') || {};
+  const achievements = JSON.parse(localStorage.getItem('achievements') || '{}');
+  const achCount = Object.keys(achievements).length;
+  const ceoName = Store.get('ceoName') || 'CEO Admin';
+
+  showModal(`
+    <div style="max-width:450px">
+      <div style="text-align:center;padding:20px 0">
+        <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);
+          display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 12px;
+          border:3px solid ${rank.color};box-shadow:0 0 20px ${rank.color}40">👤</div>
+        <h2 style="font-size:22px;margin-bottom:4px">${ceoName}</h2>
+        <div style="color:${rank.color};font-weight:700;font-size:14px;margin-bottom:12px">${rank.title}</div>
+
+        <div style="max-width:250px;margin:0 auto">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px">
+            <span>Level ${ceo.level}</span>
+            <span>${ceo.xp} / ${ceo.xpMax} XP</span>
+          </div>
+          <div style="width:100%;height:8px;background:var(--bg-input);border-radius:4px;overflow:hidden">
+            <div style="width:${(ceo.xp/ceo.xpMax)*100}%;height:100%;background:linear-gradient(90deg,${rank.color},#f59e0b);border-radius:4px;transition:width 0.5s"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div style="text-align:center;padding:12px;background:var(--bg-input);border-radius:12px">
+          <div style="font-size:20px;font-weight:800;color:var(--accent-light)">${agents.length}</div>
+          <div style="font-size:10px;color:var(--text-muted)">Agents</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:var(--bg-input);border-radius:12px">
+          <div style="font-size:20px;font-weight:800;color:#22c55e">${ceo.totalTasks}</div>
+          <div style="font-size:10px;color:var(--text-muted)">Tasks Done</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:var(--bg-input);border-radius:12px">
+          <div style="font-size:20px;font-weight:800;color:#f59e0b">${(eco.coins||0).toLocaleString()}</div>
+          <div style="font-size:10px;color:var(--text-muted)">Coins 🪙</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:var(--bg-input);border-radius:12px">
+          <div style="font-size:20px;font-weight:800;color:#ec4899">${achCount}</div>
+          <div style="font-size:10px;color:var(--text-muted)">Badges</div>
+        </div>
+      </div>
+
+      ${achCount > 0 ? `
+      <div style="margin-bottom:16px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">🏅 Achievements Unlocked</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${Object.entries(achievements).map(([k, v]) => `
+            <span style="padding:3px 8px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);
+              border-radius:8px;font-size:11px;color:#f59e0b">🏅 ${v.agent}</span>
+          `).join('')}
+        </div>
+      </div>` : ''}
+
+      <button onclick="closeModal()" class="btn btn-primary" style="width:100%">Close</button>
+    </div>
+  `);
+}
+
+// Update CEO level badge periodically
+setInterval(() => {
+  const ceo = getCeoLevel();
+  const rank = getCeoRank(ceo.level);
+  const badge = document.getElementById('ceoLevelBadge');
+  if (badge) badge.innerHTML = `<span style="color:${rank.color}">⭐ Lv.${ceo.level}</span>`;
+}, 5000);
