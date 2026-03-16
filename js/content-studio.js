@@ -157,6 +157,7 @@ function renderContentStudio() {
           <button class="btn btn-sm" onclick="aiGenerateHashtags()" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;font-size:11px">#️⃣ Hashtags</button>
           <button class="btn btn-sm" onclick="aiContentScore()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-size:11px">💯 Content Score</button>
           <button class="btn btn-sm" onclick="aiContentPlanner()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:11px">📋 Planner 7D</button>
+          <button class="btn btn-sm" onclick="aiCompetitorAnalysis()" style="background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;font-size:11px">🏆 Competitor</button>
           <button class="btn btn-sm" onclick="aiVisualBrief()" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;font-size:11px">🎨 Visual Brief</button>
           <button class="btn btn-sm" onclick="aiVideoScript()" style="background:linear-gradient(135deg,#ec4899,#f59e0b);color:#fff;font-size:11px">🎬 Video Script</button>
           <button class="btn btn-sm" onclick="aiWeeklyAnalysis()" style="background:linear-gradient(135deg,#3b82f6,#22c55e);color:#fff;font-size:11px">📊 AI Analysis</button>
@@ -1182,7 +1183,7 @@ function showContentHistory() {
             <p style="color:var(--text-muted);font-size:11px;margin:2px 0 0">${history.length} รายการ — AI สร้างให้ทั้งหมด</p>
           </div>
         </div>
-        ${history.length ? '<div style="display:flex;gap:4px"><button class="btn btn-sm" onclick="_exportHistory()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:10px">📥 Export</button><button class="btn btn-sm" onclick="_clearAllHistory()" style="background:rgba(239,68,68,0.1);color:#ef4444;font-size:10px">🗑️ ลบทั้งหมด</button></div>' : ''}
+        ${history.length ? '<div style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-sm" onclick="_exportHistory()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:10px">📥 TXT</button><button class="btn btn-sm" onclick="_exportHistoryCSV()" style="background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;font-size:10px">📊 CSV</button><button class="btn btn-sm" onclick="_clearAllHistory()" style="background:rgba(239,68,68,0.1);color:#ef4444;font-size:10px">🗑️ ลบทั้งหมด</button></div>' : ''}
       </div>
       <div style="max-height:450px;overflow-y:auto">
         ${history.length ? history.map((h, i) => `
@@ -1242,6 +1243,62 @@ function _clearAllHistory() {
   localStorage.removeItem('cs-content-history');
   showToast('🗑️ ลบประวัติทั้งหมดแล้ว!', 'success');
   showContentHistory();
+}
+
+// ===== 🏆 Competitor Analysis AI =====
+async function aiCompetitorAnalysis() {
+  const topic = _getTopicInput();
+  _showAILoading('🏆', 'Competitor Analysis', 'กำลังวิเคราะห์คู่แข่ง...');
+  try {
+    const result = await _callAIWithTimeout(
+      `คุณคือ Market Analyst ผู้เชี่ยวชาญด้านการวิเคราะห์การแข่งขัน
+ตอบเป็นภาษาไทย วิเคราะห์คู่แข่งในหัวข้อ/อุตสาหกรรมที่ให้มา:
+
+## 🏆 Competitor Analysis Report
+
+### 📊 ภาพรวมตลาด
+- ขนาดตลาด + แนวโน้ม
+- กลุ่มเป้าหมายหลัก
+
+### 🥇 คู่แข่งหลัก 3-5 ราย
+แต่ละรายวิเคราะห์:
+- ชื่อ + จุดแข็ง + จุดอ่อน
+- กลยุทธ์คอนเทนต์
+- Platform หลักที่ใช้
+- ความถี่ในการโพสต์
+
+### 📈 SWOT Analysis (ของเรา)
+- Strengths / Weaknesses / Opportunities / Threats
+
+### 💡 แผนเอาชนะคู่แข่ง
+- 5 กลยุทธ์ที่ควรทำทันที
+- Content gaps ที่คู่แข่งยังไม่ทำ
+- Unique value proposition ที่ควรเน้น
+
+### 📅 Action Plan 7 วัน
+- ทำอะไรก่อน-หลัง เพื่อแซงคู่แข่ง`,
+      `วิเคราะห์คู่แข่งในหัวข้อ/อุตสาหกรรม: ${topic}`,
+      { name: 'Market Analyst', department: 'Strategy' }
+    );
+    _showAIResult('🏆', 'Competitor Analysis', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// ===== 📊 CSV Export =====
+function _exportHistoryCSV() {
+  const history = _getContentHistory();
+  if (!history.length) return showToast('ยังไม่มีประวัติ', 'warning');
+  const escapeCSV = (str) => `"${(str||'').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+  let csv = 'No,Agent,Provider,Date,Content\n';
+  history.forEach((h, i) => {
+    csv += `${i+1},${escapeCSV(h.agentName)},${escapeCSV(h.provider)},${escapeCSV(new Date(h.timestamp).toLocaleString('th-TH'))},${escapeCSV(h.content)}\n`;
+  });
+  const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `content-history-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast('📊 Export CSV เสร็จ!', 'success');
 }
 
 // ===== 📋 Content Planner AI (7 Days) =====

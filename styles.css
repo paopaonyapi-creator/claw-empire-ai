@@ -1041,3 +1041,44 @@ body, body * { transition: background-color 0.3s ease, border-color 0.3s ease, c
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* ===== 📱 Mobile Responsive ===== */
+@media (max-width: 768px) {
+  :root { --sidebar-width: 0px; }
+  .sidebar { display: none; }
+  .main-content { margin-left: 0 !important; }
+  
+  /* Modal full-width on mobile */
+  .modal-content, [style*="max-width:600px"], [style*="max-width:500px"], [style*="max-width:420px"] {
+    max-width: 95vw !important;
+    margin: 10px !important;
+  }
+  
+  /* Chat container stack */
+  .chat-container { flex-direction: column !important; }
+  .chat-sidebar { max-height: 120px; overflow-y: scroll; }
+  .chat-header-bar { flex-wrap: wrap; gap: 6px !important; }
+  
+  /* KPI cards 2-column */
+  .grid-4, [style*="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .grid-3 { grid-template-columns: 1fr !important; }
+  .grid-3 > [style*="grid-column:span 2"] { grid-column: span 1 !important; }
+  
+  /* Settings layout */
+  .settings-layout { flex-direction: column !important; }
+  .settings-sidebar { flex-direction: row !important; overflow-x: auto; min-width: auto !important; }
+  .settings-content { min-width: auto !important; }
+}
+
+@media (max-width: 480px) {
+  /* Very small screens — stack everything */
+  .grid-4, [style*="grid-template-columns:repeat(4,1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .kpi-card { padding: 10px !important; }
+  .kpi-value { font-size: 18px !important; }
+  .chat-input-area { flex-direction: column !important; }
+  .chat-input-wrapper { width: 100% !important; }
+}
