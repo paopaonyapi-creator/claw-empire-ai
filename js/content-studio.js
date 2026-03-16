@@ -131,6 +131,9 @@ function renderContentStudio() {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-sm" onclick="showDailyWorkflow()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff">📋 Daily Workflow</button>
           <button class="btn btn-sm" onclick="showContentPipeline()" style="background:linear-gradient(135deg,#06b6d4,#22c55e);color:#fff">🔄 Pipeline Board</button>
+          <button class="btn btn-sm" onclick="showContentCalendar()" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff">📅 Calendar</button>
+          <button class="btn btn-sm" onclick="showTemplatesLibrary()" style="background:linear-gradient(135deg,#f59e0b,#22c55e);color:#fff">📋 Templates</button>
+          <button class="btn btn-sm" onclick="showPlatformPreview()" style="background:linear-gradient(135deg,#3b82f6,#06b6d4);color:#fff">👁️ Preview</button>
           <button class="btn btn-sm" onclick="addNewContent()">➕ New Content</button>
           <button class="btn btn-sm" onclick="showWeeklyReport()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff">📊 Weekly Report</button>
         </div>
@@ -848,6 +851,255 @@ async function aiAutoWorkflow() {
   `);
 
   showToast('🚀 Auto Content เสร็จครบ 5 ขั้นตอน!', 'success', 5000);
+}
+
+// ===== 📅 Content Calendar =====
+function showContentCalendar() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthNames = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const dayNames = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  const items = getContentItems();
+
+  // Map content to dates
+  const dateMap = {};
+  items.forEach(item => {
+    const d = item.date || item.created;
+    if (d) {
+      const key = new Date(d).getDate();
+      if (!dateMap[key]) dateMap[key] = [];
+      dateMap[key].push(item);
+    }
+  });
+
+  // Sample scheduled posts for demo
+  const samplePosts = {
+    [now.getDate()]: [{title:'โพสต์ขายสินค้า',platform:'facebook',type:'post'}],
+    [now.getDate()+1]: [{title:'คลิป Behind the scenes',platform:'tiktok',type:'video'}],
+    [now.getDate()+2]: [{title:'คารูเซลความรู้',platform:'instagram',type:'carousel'}],
+    [now.getDate()+4]: [{title:'ไลฟ์สอนใช้งาน',platform:'facebook',type:'live'}],
+    [now.getDate()+6]: [{title:'Reels สั้น 15 วิ',platform:'instagram',type:'reel'},{title:'Review สินค้า',platform:'tiktok',type:'video'}],
+  };
+  // Merge sample + real
+  Object.keys(samplePosts).forEach(k => {
+    const d = parseInt(k);
+    if (d <= daysInMonth) {
+      if (!dateMap[d]) dateMap[d] = [];
+      dateMap[d] = [...dateMap[d], ...samplePosts[d]];
+    }
+  });
+
+  const platformColors = {facebook:'#3b82f6',instagram:'#ec4899',tiktok:'#000',twitter:'#1da1f2',x:'#000',youtube:'#ef4444'};
+  const platformIcons = {facebook:'📘',instagram:'📸',tiktok:'🎵',twitter:'🐦',x:'𝕏',youtube:'▶️'};
+
+  let calGrid = '';
+  // Header row
+  calGrid += dayNames.map(d => `<div style="text-align:center;font-weight:700;font-size:11px;color:var(--text-muted);padding:6px">${d}</div>`).join('');
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) calGrid += '<div></div>';
+  // Day cells
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = d === now.getDate();
+    const hasContent = dateMap[d] && dateMap[d].length > 0;
+    const contentDots = hasContent ? dateMap[d].slice(0,3).map(c => {
+      const color = platformColors[c.platform] || '#6366f1';
+      return `<div style="font-size:8px;background:${color};color:#fff;border-radius:4px;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%" title="${c.title}">${platformIcons[c.platform]||'📄'} ${c.title?.substring(0,8)||''}</div>`;
+    }).join('') : '';
+    const moreCount = hasContent && dateMap[d].length > 3 ? `<div style="font-size:8px;color:var(--text-muted)">+${dateMap[d].length-3} more</div>` : '';
+    calGrid += `<div style="min-height:70px;border:1px solid ${isToday ? '#6366f1' : 'var(--border)'};border-radius:8px;padding:4px;
+      background:${isToday ? 'rgba(99,102,241,0.08)' : 'var(--bg-card)'};
+      ${isToday ? 'box-shadow:0 0 8px rgba(99,102,241,0.2)' : ''};
+      cursor:pointer" onclick="showCalendarDay(${d})">
+      <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${isToday?'#6366f1':'var(--text)'}">${d}</div>
+      <div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">${contentDots}${moreCount}</div>
+    </div>`;
+  }
+
+  showModal(`
+    <div style="max-width:700px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <h3 style="margin:0">📅 Content Calendar</h3>
+          <p style="color:var(--text-muted);font-size:11px;margin:4px 0 0">${monthNames[month]} ${year}</p>
+        </div>
+        <div style="display:flex;gap:6px">
+          <span style="background:rgba(59,130,246,0.1);color:#3b82f6;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700">📘 FB</span>
+          <span style="background:rgba(236,72,153,0.1);color:#ec4899;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700">📸 IG</span>
+          <span style="background:rgba(0,0,0,0.05);padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700">🎵 TT</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
+        ${calGrid}
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+        <button class="btn btn-sm" onclick="addNewContent()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff">➕ เพิ่มคอนเทนต์</button>
+      </div>
+    </div>
+  `);
+}
+
+function showCalendarDay(day) {
+  const items = getContentItems();
+  const now = new Date();
+  const dateMap = {};
+  items.forEach(item => {
+    const d = item.date || item.created;
+    if (d) { const key = new Date(d).getDate(); if (!dateMap[key]) dateMap[key] = []; dateMap[key].push(item); }
+  });
+  const dayItems = dateMap[day] || [];
+  showModal(`
+    <div style="max-width:400px">
+      <h3>📅 วันที่ ${day}</h3>
+      ${dayItems.length ? dayItems.map(i => `
+        <div style="padding:10px;background:var(--bg-input);border-radius:10px;margin-bottom:6px">
+          <div style="font-weight:700;font-size:13px">${i.title}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${i.platform || 'All'} · ${i.type || 'post'}</div>
+        </div>
+      `).join('') : '<p style="color:var(--text-muted);text-align:center">ยังไม่มีคอนเทนต์วันนี้</p>'}
+      <button class="btn btn-sm" onclick="addNewContent()" style="width:100%;margin-top:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff">➕ เพิ่มคอนเทนต์วันนี้</button>
+    </div>
+  `);
+}
+
+// ===== 📋 Content Templates Library =====
+const CONTENT_TEMPLATES = [
+  { id: 't1', name: 'โพสต์ขายสินค้า', icon: '🛒', cat: 'ขาย', desc: 'โพสต์แนะนำสินค้า + ราคา + CTA ซื้อเลย', prompt: 'เขียนโพสต์ขายสินค้าออนไลน์ ให้มี Hook เปิด, รายละเอียดสินค้า, ราคาพิเศษ, CTA สั่งซื้อ, hashtag 5 อัน' },
+  { id: 't2', name: 'เล่าเรื่อง (Storytelling)', icon: '📖', cat: 'เล่าเรื่อง', desc: 'โพสต์เล่าเรื่องจากประสบการณ์จริง', prompt: 'เขียนโพสต์เล่าเรื่อง storytelling จากประสบการณ์จริง ให้อ่านแล้วอิน มี twist ending และ lesson learned' },
+  { id: 't3', name: 'สอนความรู้ (How-to)', icon: '📚', cat: 'สอน', desc: 'โพสต์สอนวิธีทำ ขั้นตอน 1-2-3', prompt: 'เขียนโพสต์สอนวิธีทำ step-by-step 5 ขั้นตอน ภาษาง่ายๆ ให้คนทำตามได้เลย มี emoji ประกอบ' },
+  { id: 't4', name: 'รีวิวสินค้า', icon: '⭐', cat: 'รีวิว', desc: 'รีวิวจริง พร้อมข้อดี-ข้อเสีย', prompt: 'เขียนรีวิวสินค้าแบบจริงใจ มีข้อดี 3 ข้อ ข้อเสีย 1 ข้อ สรุปว่าเหมาะกับใคร ให้คะแนน /5' },
+  { id: 't5', name: 'Before & After', icon: '🔄', cat: 'ขาย', desc: 'เปรียบเทียบก่อน-หลังใช้สินค้า', prompt: 'เขียนโพสต์ Before & After เปรียบเทียบก่อนและหลังใช้สินค้า/บริการ ให้เห็นผลลัพธ์ชัดเจน มี CTA' },
+  { id: 't6', name: 'Q&A ถาม-ตอบ', icon: '❓', cat: 'engagement', desc: 'โพสต์ถาม-ตอบเพิ่ม engagement', prompt: 'เขียนโพสต์ Q&A 5 คำถาม-คำตอบ ที่คนถามบ่อยเกี่ยวกับสินค้า/ธุรกิจ ตอบสั้นกระชับเข้าใจง่าย' },
+  { id: 't7', name: 'โพลล์ (Poll)', icon: '📊', cat: 'engagement', desc: 'โพสต์โหวตเลือก สร้าง engagement', prompt: 'เขียนโพสต์ Poll ถามความเห็น ให้เลือก 2-4 ตัวเลือก หัวข้อน่าสนใจ ชวนให้คนคอมเมนต์' },
+  { id: 't8', name: 'ส่วนลดพิเศษ', icon: '🏷️', cat: 'โปรโมชั่น', desc: 'โพสต์โปรโมชั่น ส่วนลด flash sale', prompt: 'เขียนโพสต์โปรโมชั่นส่วนลดพิเศษ มี urgency (จำกัดเวลา), ราคาเปรียบเทียบ, CTA รีบสั่ง, emoji 🔥' },
+  { id: 't9', name: 'Testimonial ลูกค้า', icon: '💬', cat: 'โซเชียลพรูฟ', desc: 'โพสต์รีวิวจากลูกค้าจริง', prompt: 'เขียนโพสต์ testimonial จากลูกค้าจริง 3 คน แต่ละคนมีปัญหาต่างกัน เล่าว่าสินค้าช่วยแก้ปัญหาอย่างไร' },
+  { id: 't10', name: 'เทรนด์ของวัน', icon: '🔥', cat: 'เทรนด์', desc: 'โพสต์เกาะกระแสเทรนด์ร้อน', prompt: 'เขียนโพสต์เกาะกระแสเทรนด์ที่มาแรงตอนนี้ เชื่อมโยงกับสินค้า/ธุรกิจอย่างแนบเนียน มี hashtag trending' },
+  { id: 't11', name: 'สคริปต์คลิปสั้น TikTok', icon: '🎬', cat: 'วิดีโอ', desc: 'สคริปต์คลิปสั้น 15-60 วินาที', prompt: 'เขียนสคริปต์คลิปสั้น TikTok 30 วินาที มี Hook 3 วิแรก, เนื้อหา 3 จุด, CTA, แนะนำเพลงประกอบ' },
+  { id: 't12', name: 'คารูเซล Instagram', icon: '📸', cat: 'วิดีโอ', desc: 'เนื้อหาคารูเซล 5-10 slides', prompt: 'เขียนเนื้อหาคารูเซล Instagram 7 slides: Slide 1=Hook ปก, Slide 2-6=เนื้อหาทีละข้อ, Slide 7=CTA + summary' },
+  { id: 't13', name: 'Email Newsletter', icon: '📧', cat: 'อีเมล', desc: 'อีเมลประชาสัมพันธ์', prompt: 'เขียน email newsletter หัวข้อน่าสนใจ มี subject line 3 ตัวเลือก, preheader, เนื้อหา 3 section, CTA button' },
+  { id: 't14', name: 'Thread บน X', icon: '🧵', cat: 'เทรนด์', desc: 'Thread 5-10 ทวีตให้ความรู้', prompt: 'เขียน Thread บน X (Twitter) 7 ทวีต ให้ความรู้เรื่องหนึ่ง ทวีตแรกเป็น Hook, ทวีต 2-6 เนื้อหา, ทวีตสุดท้ายเป็น CTA' },
+  { id: 't15', name: 'Comparison เปรียบเทียบ', icon: '⚖️', cat: 'สอน', desc: 'เปรียบเทียบ A vs B', prompt: 'เขียนโพสต์เปรียบเทียบ 2 ตัวเลือก (A vs B) ให้ข้อดี-ข้อเสียแต่ละอัน สรุปว่าเหมาะกับใคร ใช้ตารางเปรียบเทียบ' },
+];
+
+function showTemplatesLibrary() {
+  const categories = [...new Set(CONTENT_TEMPLATES.map(t => t.cat))];
+
+  showModal(`
+    <div style="max-width:650px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span style="font-size:32px">📋</span>
+        <div>
+          <h3 style="margin:0">Content Templates</h3>
+          <p style="color:var(--text-muted);font-size:11px;margin:2px 0 0">${CONTENT_TEMPLATES.length} templates พร้อมใช้ — เลือกแล้ว AI เขียนให้ทันที</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+        ${categories.map(c => `<span style="padding:4px 10px;border-radius:8px;font-size:10px;font-weight:700;background:rgba(99,102,241,0.1);color:#6366f1">${c}</span>`).join('')}
+      </div>
+      <div style="max-height:450px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px">
+        ${CONTENT_TEMPLATES.map(t => `
+          <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:all 0.2s;
+            hover:transform:translateY(-2px)" onclick="useTemplate('${t.id}')">
+            <div style="font-size:28px;margin-bottom:6px">${t.icon}</div>
+            <div style="font-weight:700;font-size:12px;margin-bottom:4px">${t.name}</div>
+            <div style="font-size:10px;color:var(--text-muted);line-height:1.4">${t.desc}</div>
+            <div style="margin-top:8px">
+              <span style="font-size:9px;background:rgba(99,102,241,0.1);color:#6366f1;padding:2px 6px;border-radius:4px">${t.cat}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `);
+}
+
+async function useTemplate(templateId) {
+  const template = CONTENT_TEMPLATES.find(t => t.id === templateId);
+  if (!template) return;
+  const topic = _getTopicInput();
+  _showAILoading(template.icon, template.name, `กำลังสร้างคอนเทนต์จาก Template...`);
+  try {
+    const result = await _callAIWithTimeout(
+      `คุณคือ Content Writer มืออาชีพ ตอบเป็นภาษาไทย\n${template.prompt}`,
+      `หัวข้อ: ${topic}\nสร้างคอนเทนต์ตาม template: ${template.name}`,
+      { name: 'Template Writer', department: 'Content' }
+    );
+    _showAIResult(template.icon, template.name, result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// ===== 👁️ Multi-Platform Preview =====
+function showPlatformPreview() {
+  const items = getContentItems();
+  const latestPost = items.find(i => i.stage === 'posted' || i.stage === 'scheduled') || items[0];
+  const title = latestPost?.title || 'เทคนิคขายของออนไลน์ให้ปังในปี 2024';
+  const sampleContent = `🔥 ${title}\n\nเคยมั้ยที่รู้สึกว่าทำคอนเทนต์ไปแล้ว แต่ไม่มีคนเห็น? วันนี้จะมาเปิดเผย 3 เทคนิคลับที่ทำให้ยอดพุ่ง 10 เท่า!\n\n1️⃣ เลือกเวลาโพสต์ที่ถูกต้อง\n2️⃣ ใช้ Hook ที่หยุดนิ้วได้\n3️⃣ มี CTA ที่ชัดเจน\n\n💬 คุณใช้เทคนิคไหนอยู่? คอมเมนต์บอกหน่อย!\n\n#ขายของออนไลน์ #DigitalMarketing #ContentCreator #Tips2024 #SMM`;
+
+  const platforms = [
+    { name: 'Facebook', icon: '📘', color: '#3b82f6', maxChar: 63206, bestTime: '11:00-13:00', format: 'โพสต์ยาวได้ + รูป/วิดีโอ', charLabel: 'ไม่จำกัด (แนะนำ < 500)' },
+    { name: 'Instagram', icon: '📸', color: '#ec4899', maxChar: 2200, bestTime: '17:00-21:00', format: 'รูป/คารูเซล + Caption', charLabel: '2,200 ตัวอักษร' },
+    { name: 'TikTok', icon: '🎵', color: '#000', maxChar: 300, bestTime: '19:00-23:00', format: 'วิดีโอสั้น + Caption', charLabel: '300 ตัวอักษร' },
+    { name: 'X (Twitter)', icon: '𝕏', color: '#1da1f2', maxChar: 280, bestTime: '08:00-10:00', format: 'ข้อความสั้น + Thread', charLabel: '280 ตัวอักษร' },
+  ];
+
+  showModal(`
+    <div style="max-width:700px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span style="font-size:32px">👁️</span>
+        <div>
+          <h3 style="margin:0">Multi-Platform Preview</h3>
+          <p style="color:var(--text-muted);font-size:11px;margin:2px 0 0">ดูว่าโพสต์จะเห็นยังไงบนแต่ละ Platform</p>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-height:500px;overflow-y:auto">
+        ${platforms.map(p => {
+          const charCount = sampleContent.length;
+          const isOverLimit = charCount > p.maxChar;
+          const displayContent = isOverLimit ? sampleContent.substring(0, p.maxChar) + '...' : sampleContent;
+          return `
+          <div style="border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg-card)">
+            <div style="background:${p.color};color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px">
+              <span style="font-size:20px">${p.icon}</span>
+              <span style="font-weight:700;font-size:14px">${p.name}</span>
+            </div>
+            <div style="padding:12px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <div style="width:32px;height:32px;border-radius:50%;background:${p.color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px">👤</div>
+                <div>
+                  <div style="font-weight:700;font-size:11px">Your Brand</div>
+                  <div style="font-size:9px;color:var(--text-muted)">Just now</div>
+                </div>
+              </div>
+              <div style="font-size:11px;line-height:1.5;white-space:pre-wrap;max-height:120px;overflow-y:auto;background:var(--bg-input);padding:8px;border-radius:8px">${displayContent}</div>
+              <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:9px;color:${isOverLimit ? '#ef4444' : '#22c55e'};font-weight:700">
+                  ${isOverLimit ? '⚠️ เกินลิมิต!' : '✅ OK'} ${charCount}/${p.charLabel}
+                </span>
+              </div>
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;gap:12px">
+                <span style="font-size:9px;color:var(--text-muted)">⏰ Best: ${p.bestTime}</span>
+                <span style="font-size:9px;color:var(--text-muted)">📐 ${p.format}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="margin-top:12px;background:var(--bg-input);border-radius:10px;padding:12px">
+        <div style="font-weight:700;font-size:12px;margin-bottom:6px">📊 Platform Summary</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
+          ${platforms.map(p => {
+            const ok = sampleContent.length <= p.maxChar;
+            return `<div style="padding:6px;border-radius:8px;background:${ok ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)'}">
+              <div style="font-size:16px">${p.icon}</div>
+              <div style="font-size:10px;font-weight:700;color:${ok ? '#22c55e' : '#ef4444'}">${ok ? '✅ Ready' : '⚠️ Too long'}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `);
 }
 
 // ===== Register Tab =====
