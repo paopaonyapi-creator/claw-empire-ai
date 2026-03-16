@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Surge deploy staging
+.surge/
+
+# Railway
+.railway/
+
+# Env files
+.env
+.env.local
