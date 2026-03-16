@@ -134,6 +134,7 @@ function renderContentStudio() {
           <button class="btn btn-sm" onclick="showContentCalendar()" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff">📅 Calendar</button>
           <button class="btn btn-sm" onclick="showTemplatesLibrary()" style="background:linear-gradient(135deg,#f59e0b,#22c55e);color:#fff">📋 Templates</button>
           <button class="btn btn-sm" onclick="showPlatformPreview()" style="background:linear-gradient(135deg,#3b82f6,#06b6d4);color:#fff">👁️ Preview</button>
+          <button class="btn btn-sm" onclick="showContentHistory()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff">📜 History</button>
           <button class="btn btn-sm" onclick="addNewContent()">➕ New Content</button>
           <button class="btn btn-sm" onclick="showWeeklyReport()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff">📊 Weekly Report</button>
         </div>
@@ -530,6 +531,8 @@ function _showAILoading(agentIcon, agentName, loading) {
 }
 
 function _showAIResult(agentIcon, agentName, provider, content) {
+  // Auto-save to history
+  _saveToContentHistory(agentIcon, agentName, provider, content);
   showModal(`
     <div style="max-width:550px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
@@ -539,7 +542,11 @@ function _showAIResult(agentIcon, agentName, provider, content) {
           <div style="font-size:10px;color:var(--text-muted)">Powered by ${provider} 🤖</div>
         </div>
       </div>
-      <div style="padding:16px;background:var(--bg-input);border-radius:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:500px;overflow-y:auto">${content}</div>
+      <div style="padding:16px;background:var(--bg-input);border-radius:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:400px;overflow-y:auto">${content}</div>
+      <div style="margin-top:10px;display:flex;gap:6px;justify-content:flex-end">
+        <button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.querySelector('#modalOverlay .modal-content div[style*=pre-wrap]')?.innerText||'');showToast('📋 คัดลอกแล้ว!','success')" style="font-size:11px">📋 คัดลอก</button>
+        <button class="btn btn-sm" onclick="showContentHistory()" style="font-size:11px">📜 ดูประวัติ</button>
+      </div>
     </div>
   `);
 }
@@ -875,22 +882,27 @@ function showContentCalendar() {
     }
   });
 
-  // Sample scheduled posts for demo
-  const samplePosts = {
-    [now.getDate()]: [{title:'โพสต์ขายสินค้า',platform:'facebook',type:'post'}],
-    [now.getDate()+1]: [{title:'คลิป Behind the scenes',platform:'tiktok',type:'video'}],
-    [now.getDate()+2]: [{title:'คารูเซลความรู้',platform:'instagram',type:'carousel'}],
-    [now.getDate()+4]: [{title:'ไลฟ์สอนใช้งาน',platform:'facebook',type:'live'}],
-    [now.getDate()+6]: [{title:'Reels สั้น 15 วิ',platform:'instagram',type:'reel'},{title:'Review สินค้า',platform:'tiktok',type:'video'}],
-  };
-  // Merge sample + real
-  Object.keys(samplePosts).forEach(k => {
-    const d = parseInt(k);
-    if (d <= daysInMonth) {
-      if (!dateMap[d]) dateMap[d] = [];
-      dateMap[d] = [...dateMap[d], ...samplePosts[d]];
+  // Merge scheduled posts from localStorage
+  const scheduledPosts = _getScheduledPosts();
+  scheduledPosts.forEach(sp => {
+    if (sp.month === month && sp.year === year) {
+      if (!dateMap[sp.day]) dateMap[sp.day] = [];
+      dateMap[sp.day].push(sp);
     }
   });
+  // Sample posts only if no real data exists
+  if (Object.keys(dateMap).length === 0) {
+    const samplePosts = {
+      [now.getDate()]: [{title:'โพสต์ขายสินค้า',platform:'facebook',type:'post'}],
+      [now.getDate()+1]: [{title:'คลิป Behind the scenes',platform:'tiktok',type:'video'}],
+      [now.getDate()+2]: [{title:'คารูเซลความรู้',platform:'instagram',type:'carousel'}],
+      [now.getDate()+4]: [{title:'ไลฟ์สอนใช้งาน',platform:'facebook',type:'live'}],
+    };
+    Object.keys(samplePosts).forEach(k => {
+      const d = parseInt(k);
+      if (d <= daysInMonth) { dateMap[d] = samplePosts[d]; }
+    });
+  }
 
   const platformColors = {facebook:'#3b82f6',instagram:'#ec4899',tiktok:'#000',twitter:'#1da1f2',x:'#000',youtube:'#ef4444'};
   const platformIcons = {facebook:'📘',instagram:'📸',tiktok:'🎵',twitter:'🐦',x:'𝕏',youtube:'▶️'};
@@ -943,23 +955,56 @@ function showContentCalendar() {
 
 function showCalendarDay(day) {
   const items = getContentItems();
+  const scheduled = _getScheduledPosts();
   const now = new Date();
   const dateMap = {};
   items.forEach(item => {
     const d = item.date || item.created;
     if (d) { const key = new Date(d).getDate(); if (!dateMap[key]) dateMap[key] = []; dateMap[key].push(item); }
   });
+  // Merge scheduled posts
+  scheduled.forEach(sp => {
+    if (sp.day === day && sp.month === now.getMonth() && sp.year === now.getFullYear()) {
+      if (!dateMap[day]) dateMap[day] = [];
+      dateMap[day].push(sp);
+    }
+  });
   const dayItems = dateMap[day] || [];
+  const platformIcons = {facebook:'📘',instagram:'📸',tiktok:'🎵',x:'𝕏',youtube:'▶️'};
   showModal(`
-    <div style="max-width:400px">
-      <h3>📅 วันที่ ${day}</h3>
-      ${dayItems.length ? dayItems.map(i => `
-        <div style="padding:10px;background:var(--bg-input);border-radius:10px;margin-bottom:6px">
-          <div style="font-weight:700;font-size:13px">${i.title}</div>
-          <div style="font-size:11px;color:var(--text-muted)">${i.platform || 'All'} · ${i.type || 'post'}</div>
+    <div style="max-width:420px">
+      <h3 style="margin-bottom:12px">📅 วันที่ ${day} ${['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][now.getMonth()]}</h3>
+      ${dayItems.length ? '<div style="margin-bottom:12px">' + dayItems.map(i => `
+        <div style="padding:10px;background:var(--bg-input);border-radius:10px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">${platformIcons[i.platform]||'📄'}</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:12px">${i.title}</div>
+            <div style="font-size:10px;color:var(--text-muted)">${i.platform || 'All'} · ${i.type || 'post'}</div>
+          </div>
         </div>
-      `).join('') : '<p style="color:var(--text-muted);text-align:center">ยังไม่มีคอนเทนต์วันนี้</p>'}
-      <button class="btn btn-sm" onclick="addNewContent()" style="width:100%;margin-top:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff">➕ เพิ่มคอนเทนต์วันนี้</button>
+      `).join('') + '</div>' : '<p style="color:var(--text-muted);text-align:center;margin-bottom:12px">ยังไม่มีคอนเทนต์วันนี้</p>'}
+      <div style="background:var(--bg-input);border-radius:12px;padding:12px;border:1px dashed var(--border)">
+        <div style="font-weight:700;font-size:12px;margin-bottom:8px">➕ เพิ่มคอนเทนต์วันนี้</div>
+        <input id="schedTitle" placeholder="ชื่อคอนเทนต์..." style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text);font-size:12px;margin-bottom:6px;box-sizing:border-box">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <select id="schedPlatform" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text);font-size:11px">
+            <option value="facebook">📘 Facebook</option>
+            <option value="instagram">📸 Instagram</option>
+            <option value="tiktok">🎵 TikTok</option>
+            <option value="x">𝕏 X (Twitter)</option>
+            <option value="youtube">▶️ YouTube</option>
+          </select>
+          <select id="schedType" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text);font-size:11px">
+            <option value="post">📝 Post</option>
+            <option value="video">🎬 Video</option>
+            <option value="reel">📱 Reel</option>
+            <option value="carousel">🖼️ Carousel</option>
+            <option value="live">🔴 Live</option>
+            <option value="story">📖 Story</option>
+          </select>
+        </div>
+        <button class="btn btn-sm" onclick="_addScheduledPost(${day})" style="width:100%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff">✅ บันทึก</button>
+      </div>
     </div>
   `);
 }
@@ -1032,10 +1077,14 @@ async function useTemplate(templateId) {
 
 // ===== 👁️ Multi-Platform Preview =====
 function showPlatformPreview() {
+  // Try to pull real AI-generated content from history
+  const history = _getContentHistory();
+  const latestAI = history.length > 0 ? history[0] : null;
   const items = getContentItems();
   const latestPost = items.find(i => i.stage === 'posted' || i.stage === 'scheduled') || items[0];
-  const title = latestPost?.title || 'เทคนิคขายของออนไลน์ให้ปังในปี 2024';
-  const sampleContent = `🔥 ${title}\n\nเคยมั้ยที่รู้สึกว่าทำคอนเทนต์ไปแล้ว แต่ไม่มีคนเห็น? วันนี้จะมาเปิดเผย 3 เทคนิคลับที่ทำให้ยอดพุ่ง 10 เท่า!\n\n1️⃣ เลือกเวลาโพสต์ที่ถูกต้อง\n2️⃣ ใช้ Hook ที่หยุดนิ้วได้\n3️⃣ มี CTA ที่ชัดเจน\n\n💬 คุณใช้เทคนิคไหนอยู่? คอมเมนต์บอกหน่อย!\n\n#ขายของออนไลน์ #DigitalMarketing #ContentCreator #Tips2024 #SMM`;
+  const title = latestAI?.agentName || latestPost?.title || 'เทคนิคขายของออนไลน์ให้ปังในปี 2024';
+  const sampleContent = latestAI?.content || `🔥 ${title}\n\nเคยมั้ยที่รู้สึกว่าทำคอนเทนต์ไปแล้ว แต่ไม่มีคนเห็น? วันนี้จะมาเปิดเผย 3 เทคนิคลับที่ทำให้ยอดพุ่ง 10 เท่า!\n\n1️⃣ เลือกเวลาโพสต์ที่ถูกต้อง\n2️⃣ ใช้ Hook ที่หยุดนิ้วได้\n3️⃣ มี CTA ที่ชัดเจน\n\n💬 คุณใช้เทคนิคไหนอยู่? คอมเมนต์บอกหน่อย!\n\n#ขายของออนไลน์ #DigitalMarketing #ContentCreator #Tips2024 #SMM`;
+  const previewSource = latestAI ? `📌 ใช้ข้อมูลจาก: ${latestAI.agentName} (${new Date(latestAI.timestamp).toLocaleString('th-TH')})` : '📌 ใช้ข้อมูลตัวอย่าง — สร้างคอนเทนต์ด้วย AI แล้วกลับมาดูใหม่!';
 
   const platforms = [
     { name: 'Facebook', icon: '📘', color: '#3b82f6', maxChar: 63206, bestTime: '11:00-13:00', format: 'โพสต์ยาวได้ + รูป/วิดีโอ', charLabel: 'ไม่จำกัด (แนะนำ < 500)' },
@@ -1050,7 +1099,7 @@ function showPlatformPreview() {
         <span style="font-size:32px">👁️</span>
         <div>
           <h3 style="margin:0">Multi-Platform Preview</h3>
-          <p style="color:var(--text-muted);font-size:11px;margin:2px 0 0">ดูว่าโพสต์จะเห็นยังไงบนแต่ละ Platform</p>
+          <p style="color:var(--text-muted);font-size:11px;margin:2px 0 0">${previewSource}</p>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-height:500px;overflow-y:auto">
@@ -1100,6 +1149,90 @@ function showPlatformPreview() {
       </div>
     </div>
   `);
+}
+
+// ===== 📜 Content History =====
+function _getContentHistory() {
+  try { return JSON.parse(localStorage.getItem('cs-content-history') || '[]'); } catch { return []; }
+}
+
+function _saveToContentHistory(icon, agentName, provider, content) {
+  const history = _getContentHistory();
+  history.unshift({ icon, agentName, provider, content, timestamp: Date.now() });
+  // Keep max 50 items
+  if (history.length > 50) history.length = 50;
+  localStorage.setItem('cs-content-history', JSON.stringify(history));
+}
+
+function showContentHistory() {
+  const history = _getContentHistory();
+  showModal(`
+    <div style="max-width:600px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:28px">📜</span>
+          <div>
+            <h3 style="margin:0">Content History</h3>
+            <p style="color:var(--text-muted);font-size:11px;margin:2px 0 0">${history.length} รายการ — AI สร้างให้ทั้งหมด</p>
+          </div>
+        </div>
+        ${history.length ? '<button class="btn btn-sm" onclick="_exportHistory()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:10px">📥 Export .txt</button>' : ''}
+      </div>
+      <div style="max-height:450px;overflow-y:auto">
+        ${history.length ? history.map((h, i) => `
+          <div style="background:var(--bg-input);border-radius:12px;padding:12px;margin-bottom:8px;border:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:20px">${h.icon}</span>
+                <div>
+                  <div style="font-weight:700;font-size:12px">${h.agentName}</div>
+                  <div style="font-size:9px;color:var(--text-muted)">${h.provider} · ${new Date(h.timestamp).toLocaleString('th-TH')}</div>
+                </div>
+              </div>
+              <button class="btn btn-sm" onclick="navigator.clipboard.writeText(${JSON.stringify(h.content).replace(/'/g,"\\'")});showToast('📋 คัดลอกแล้ว!','success')" style="font-size:9px;padding:2px 8px">📋</button>
+            </div>
+            <div style="font-size:11px;line-height:1.5;color:var(--text-muted);max-height:60px;overflow:hidden;white-space:pre-wrap">${(h.content||'').substring(0,150)}${(h.content||'').length > 150 ? '...' : ''}</div>
+          </div>
+        `).join('') : '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:48px;margin-bottom:8px">📭</div><p>ยังไม่มีประวัติ — ลองใช้ AI สร้างคอนเทนต์ก่อน!</p></div>'}
+      </div>
+    </div>
+  `);
+}
+
+function _exportHistory() {
+  const history = _getContentHistory();
+  if (!history.length) return showToast('ยังไม่มีประวัติ', 'warning');
+  let txt = '===== Content History Export =====\n';
+  txt += 'Exported: ' + new Date().toLocaleString('th-TH') + '\n\n';
+  history.forEach((h, i) => {
+    txt += `--- #${i+1} ${h.agentName} (${h.provider}) ---\n`;
+    txt += `Date: ${new Date(h.timestamp).toLocaleString('th-TH')}\n`;
+    txt += h.content + '\n\n';
+  });
+  const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `content-history-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  showToast('📥 Export เสร็จแล้ว!', 'success');
+}
+
+// ===== 📅 Calendar Scheduling =====
+function _getScheduledPosts() {
+  try { return JSON.parse(localStorage.getItem('cs-scheduled-posts') || '[]'); } catch { return []; }
+}
+
+function _addScheduledPost(day) {
+  const title = document.getElementById('schedTitle')?.value?.trim();
+  const platform = document.getElementById('schedPlatform')?.value || 'facebook';
+  const type = document.getElementById('schedType')?.value || 'post';
+  if (!title) { showToast('⚠️ กรุณาใส่ชื่อคอนเทนต์', 'warning'); return; }
+  const now = new Date();
+  const posts = _getScheduledPosts();
+  posts.push({ title, platform, type, day, month: now.getMonth(), year: now.getFullYear(), created: Date.now() });
+  localStorage.setItem('cs-scheduled-posts', JSON.stringify(posts));
+  showToast(`✅ เพิ่ม "${title}" ในวันที่ ${day} แล้ว!`, 'success');
+  showCalendarDay(day);
 }
 
 // ===== Register Tab =====
