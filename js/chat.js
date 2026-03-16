@@ -1,6 +1,7 @@
 // ===== Chat / $ Command System — Multi-AI Integration (6 Providers) + TTS =====
 let selectedChatAgent = null;
 let currentAudioPlayer = null; // Track playing audio for TTS
+let _chatPendingImage = null; // Pending image for Vision AI {base64, mimeType, preview}
 
 // Backend API proxy URL (Railway) — if set, API keys are hidden server-side
 const BACKEND_URL = 'https://claw-empire-api-production.up.railway.app';
@@ -289,14 +290,17 @@ function renderChat() {
           <div class="chat-input-wrapper">
             <div style="display:flex;gap:6px;align-items:center">
               <button class="btn btn-sm" id="voiceMicBtn" onclick="toggleVoiceInput()" title="🎤 สั่งงานด้วยเสียง" style="font-size:16px;padding:6px 10px">🎤</button>
+              <button class="btn btn-sm" onclick="chatUploadImage()" title="📷 ส่งรูปให้ AI วิเคราะห์" style="font-size:16px;padding:6px 10px">📷</button>
               <input class="chat-input" id="chatInput" placeholder="${hasApiKey ? `💬 Ask ${activeAI} AI anything or $ command...` : '$ type a command or message...'}"
                 onkeydown="if(event.key==='Enter' && !event.shiftKey)sendChatMessage()" style="flex:1" />
             </div>
+            <div id="chatImagePreview" style="display:none;margin-top:6px;padding:8px;background:var(--bg-input);border-radius:8px;border:1px dashed var(--accent)"></div>
             <div class="chat-input-hints">
               <span class="chat-hint" onclick="insertQuickCommand('$ status report')">📊 Status</span>
               <span class="chat-hint" onclick="insertQuickCommand('$ security scan')">🛡️ Security</span>
               <span class="chat-hint" onclick="insertQuickCommand('$ code review')">🔍 Review</span>
               <span class="chat-hint" onclick="startAgentToAgentChat()" style="background:rgba(99,102,241,0.15);color:var(--accent-light)">🤖↔🤖 Agent Chat</span>
+              <span class="chat-hint" onclick="startCEOMode()" style="background:linear-gradient(135deg,rgba(234,179,8,0.2),rgba(245,158,11,0.15));color:#f59e0b;font-weight:700">👔 CEO Mode</span>
               <span class="chat-hint" onclick="generateSmartReplies()" style="background:rgba(34,197,94,0.15);color:#22c55e">💡 Smart Reply</span>
             </div>
             <div id="smartReplyContainer" style="display:none;margin-top:6px"></div>
@@ -427,6 +431,12 @@ async function sendChatMessage() {
     { id: generateId(), from: 'ceo', to: selectedChatAgent, text, type: isCommand ? 'command' : 'message', ts: Date.now() }
   ]);
   input.value = '';
+  // Clear pending image after send
+  if (_chatPendingImage) {
+    _chatPendingImage = null;
+    const preview = document.getElementById('chatImagePreview');
+    if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+  }
   renderChat();
 
   // Execute command side-effects (create tasks, change status, etc.)
@@ -668,7 +678,17 @@ async function callGeminiAPI(apiKey, systemPrompt, userMessage, agent) {
   });
 
   // Add current message
-  contents.push({ role: 'user', parts: [{ text: userMessage }] });
+  const userParts = [{ text: userMessage }];
+  // Add image if pending (Gemini Vision)
+  if (_chatPendingImage) {
+    userParts.push({
+      inlineData: {
+        mimeType: _chatPendingImage.mimeType,
+        data: _chatPendingImage.base64
+      }
+    });
+  }
+  contents.push({ role: 'user', parts: userParts });
 
   const body = {
     system_instruction: {
@@ -1223,4 +1243,279 @@ function useSmartReply(text) {
   }
   const container = document.getElementById('smartReplyContainer');
   if (container) container.style.display = 'none';
+}
+
+// ===== 📷 Image Upload for Vision AI =====
+function chatUploadImage() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { showToast('❌ ไฟล์ใหญ่เกิน 10MB', 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      const base64 = dataUrl.split(',')[1];
+      _chatPendingImage = { base64, mimeType: file.type, preview: dataUrl };
+      const previewEl = document.getElementById('chatImagePreview');
+      if (previewEl) {
+        previewEl.style.display = 'flex';
+        previewEl.style.alignItems = 'center';
+        previewEl.style.gap = '8px';
+        previewEl.innerHTML = `
+          <img src="${dataUrl}" style="width:48px;height:48px;object-fit:cover;border-radius:6px" />
+          <div style="flex:1;min-width:0">
+            <div style="font-size:11px;font-weight:600">${file.name}</div>
+            <div style="font-size:9px;color:var(--text-muted)">${(file.size/1024).toFixed(0)}KB · ${file.type}</div>
+          </div>
+          <button class="btn btn-sm" onclick="_clearChatImage()" style="color:#ef4444;font-size:14px">✕</button>
+        `;
+      }
+      showToast('📷 รูปพร้อมส่ง! พิมพ์คำสั่งแล้วกด Send', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function _clearChatImage() {
+  _chatPendingImage = null;
+  const previewEl = document.getElementById('chatImagePreview');
+  if (previewEl) { previewEl.style.display = 'none'; previewEl.innerHTML = ''; }
+}
+
+// ===== 👔 CEO Mode — Full Orchestration =====
+async function startCEOMode() {
+  if (!selectedChatAgent) { showToast('เลือก Agent ก่อน', 'warning'); return; }
+  const agent = Store.getAgent(selectedChatAgent);
+  const provider = getActiveAIProvider();
+  if (!provider) { showToast('❌ ต้องตั้ง API Key ก่อน (Settings → API)', 'error'); return; }
+
+  // Show CEO Mode input modal
+  showModal(`
+    <div style="max-width:500px">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:48px">👔</div>
+        <h3 style="margin:8px 0 0;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent">CEO Mode</h3>
+        <p style="color:var(--text-muted);font-size:11px;margin-top:4px">ส่งหัวข้อ/รูป/ลิงก์ → AI CEO วิเคราะห์ → สั่งงานพนักงาน → ได้คอนเทนต์ทุก Platform</p>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:4px">📋 หัวข้อ / คำสั่งจากประธาน</label>
+        <textarea id="ceoModeInput" class="form-input" rows="3" placeholder="เช่น: วิเคราะห์ตลาดกาแฟ แล้วสร้างคอนเทนต์โปรโมทร้านกาแฟใหม่..." style="width:100%;resize:vertical"></textarea>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:4px">📷 แนบรูปสินค้า (ไม่บังคับ)</label>
+        <button class="btn btn-sm" onclick="ceoUploadImage()" style="background:var(--bg-input);border:1px dashed var(--border);width:100%;padding:12px;display:flex;align-items:center;justify-content:center;gap:6px">
+          <span style="font-size:24px">📷</span>
+          <span style="font-size:11px;color:var(--text-muted)">คลิกเพื่ออัพโหลดรูป</span>
+        </button>
+        <div id="ceoImagePreview" style="margin-top:6px"></div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:4px">🎯 Platform เป้าหมาย</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <label style="font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ceo_fb" checked> 📘 Facebook</label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ceo_ig" checked> 📸 Instagram</label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ceo_tk" checked> 🎵 TikTok</label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ceo_yt" checked> 📺 YouTube</label>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="executeCEOPlan()" style="width:100%;background:linear-gradient(135deg,#f59e0b,#ef4444);font-size:14px;font-weight:800;padding:12px">
+        👔 สั่งการ — เริ่ม CEO Mode
+      </button>
+    </div>
+  `);
+}
+
+let _ceoImage = null;
+
+function ceoUploadImage() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      _ceoImage = { base64: ev.target.result.split(',')[1], mimeType: file.type, name: file.name };
+      document.getElementById('ceoImagePreview').innerHTML = `<img src="${ev.target.result}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--accent)" />`;
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+async function executeCEOPlan() {
+  const topic = document.getElementById('ceoModeInput')?.value?.trim();
+  if (!topic) { showToast('กรุณาใส่หัวข้อ', 'warning'); return; }
+  const platforms = [];
+  if (document.getElementById('ceo_fb')?.checked) platforms.push('Facebook');
+  if (document.getElementById('ceo_ig')?.checked) platforms.push('Instagram');
+  if (document.getElementById('ceo_tk')?.checked) platforms.push('TikTok');
+  if (document.getElementById('ceo_yt')?.checked) platforms.push('YouTube');
+
+  // Show progress modal
+  showModal(`
+    <div style="max-width:500px;text-align:center;padding:20px">
+      <div style="font-size:64px;animation:pulse 2s infinite">👔</div>
+      <h3 style="margin:12px 0">CEO กำลังทำงาน...</h3>
+      <div id="ceoProgress" style="text-align:left;font-size:12px;color:var(--text-muted);margin-top:16px"></div>
+    </div>
+  `);
+
+  const progressEl = document.getElementById('ceoProgress');
+  const log = (msg) => { if (progressEl) progressEl.innerHTML += `<div style="padding:4px 0">${msg}</div>`; };
+
+  try {
+    // Step 1: CEO Analysis
+    log('🔍 Step 1: CEO กำลังวิเคราะห์...');
+    const apiKey = Store.get('GOOGLE_AI_KEY');
+    const analysisUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    
+    const analysisParts = [{ text: `คุณคือ CEO / ประธานบริษัท ผู้เชี่ยวชาญด้านการตลาดดิจิทัล
+วิเคราะห์หัวข้อนี้และสร้าง Content Brief:
+
+หัวข้อ: ${topic}
+
+ตอบเป็นภาษาไทย ให้ครบ:
+1. 🎯 Target Audience (กลุ่มเป้าหมาย)
+2. 💡 Key Message (สารหลัก)
+3. 🎨 Visual Direction (สไตล์ภาพ)
+4. 📝 Tone of Voice (น้ำเสียง)
+5. #️⃣ Hashtags แนะนำ 10 อัน
+6. 📊 แนะนำเวลาโพสต์ที่ดีที่สุด` }];
+    if (_ceoImage) analysisParts.push({ inlineData: { mimeType: _ceoImage.mimeType, data: _ceoImage.base64 } });
+
+    const analysisResp = await fetch(analysisUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: analysisParts }],
+        generationConfig: { temperature: 0.8, maxOutputTokens: 2048 },
+        safetySettings: [{ category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }]
+      })
+    });
+    const analysisData = await analysisResp.json();
+    const brief = analysisData.candidates?.[0]?.content?.parts?.[0]?.text || 'ไม่สามารถวิเคราะห์ได้';
+    log('✅ Step 1 เสร็จ! CEO วิเคราะห์แล้ว');
+
+    // Step 2: Generate content for each platform
+    const results = {};
+    for (let i = 0; i < platforms.length; i++) {
+      const plat = platforms[i];
+      log(`📝 Step ${i+2}: กำลังสร้างคอนเทนต์ ${plat}...`);
+
+      const platPrompts = {
+        'Facebook': 'สร้างโพสต์ Facebook ภาษาไทย ยาว 3-5 ย่อหน้า เล่าเรื่อง มี CTA ชัดเจน มี emoji เหมาะสม',
+        'Instagram': 'สร้าง Instagram Caption ภาษาไทย สั้นกระชับ + hashtags 15 อัน + แนะนำ carousel 5 slides',
+        'TikTok': 'สร้าง TikTok Script ภาษาไทย 15-60 วินาที มี Hook แรก 3 วิ มี CTA ตอนจบ แนะนำเพลงประกอบ',
+        'YouTube': 'สร้าง YouTube script ภาษาไทย 3-5 นาที + Title SEO + Description + Tags 10 อัน + Thumbnail idea',
+      };
+
+      const contentResp = await fetch(analysisUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: `จาก CEO Brief:\n${brief}\n\n${platPrompts[plat]}` }] }],
+          generationConfig: { temperature: 0.9, maxOutputTokens: 2048 },
+          safetySettings: [{ category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }]
+        })
+      });
+      const contentData = await contentResp.json();
+      results[plat] = contentData.candidates?.[0]?.content?.parts?.[0]?.text || `ไม่สามารถสร้างคอนเทนต์ ${plat} ได้`;
+      log(`✅ ${plat} เสร็จ!`);
+    }
+
+    // Step 3: Show all results in tab modal
+    log('🎉 ทุก Platform เสร็จ! กำลังแสดงผล...');
+    _ceoImage = null;
+
+    const tabBtns = platforms.map((p, i) => {
+      const icons = { Facebook: '📘', Instagram: '📸', TikTok: '🎵', YouTube: '📺' };
+      return `<button onclick="document.querySelectorAll('.ceo-tab').forEach(t=>t.style.display='none');document.getElementById('ceo-tab-${i}').style.display='block';document.querySelectorAll('.ceo-tab-btn').forEach(b=>b.style.opacity='0.5');this.style.opacity='1'" class="btn btn-sm ceo-tab-btn" style="${i === 0 ? '' : 'opacity:0.5;'}font-size:11px">${icons[p] || '📝'} ${p}</button>`;
+    }).join('');
+
+    const tabContents = platforms.map((p, i) => {
+      return `<div id="ceo-tab-${i}" class="ceo-tab" style="${i > 0 ? 'display:none;' : ''}max-height:400px;overflow-y:auto;padding:12px;background:var(--bg-input);border-radius:8px;margin-top:8px;white-space:pre-wrap;font-size:12px;line-height:1.6">${results[p]}</div>`;
+    }).join('');
+
+    setTimeout(() => {
+      showModal(`
+        <div style="max-width:650px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <span style="font-size:28px">👔</span>
+            <div>
+              <h3 style="margin:0">CEO Content Factory — เสร็จ!</h3>
+              <p style="color:var(--text-muted);font-size:11px;margin:2px 0 0">${platforms.length} platforms · Gemini AI</p>
+            </div>
+            <button class="btn btn-sm" onclick="_copyCEOAllContent()" style="margin-left:auto;background:linear-gradient(135deg,#22c55e,#14b8a6);color:#fff;font-size:10px">📋 Copy All</button>
+          </div>
+
+          <div style="padding:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.15);border-radius:8px;margin-bottom:12px">
+            <div style="font-size:10px;font-weight:700;color:#f59e0b;margin-bottom:4px">📋 CEO Brief</div>
+            <div style="font-size:11px;color:var(--text-muted);max-height:80px;overflow:hidden;white-space:pre-wrap">${brief.substring(0, 300)}...</div>
+          </div>
+
+          <div style="display:flex;gap:4px;margin-bottom:4px">${tabBtns}</div>
+          ${tabContents}
+
+          <div style="display:flex;gap:6px;margin-top:12px">
+            <button class="btn btn-sm" onclick="_saveCEOToHistory('${topic.replace(/'/g, '')}', '${platforms.join(',')}')" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;flex:1">💾 Save to History</button>
+            <button class="btn btn-sm" onclick="_scheduleCEOContent('${topic.replace(/'/g, '')}', '${platforms.join(',')}')" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;flex:1">📅 Schedule</button>
+          </div>
+        </div>
+      `);
+      // Store results globally for copy/save
+      window._ceoResults = { brief, results, platforms, topic };
+    }, 500);
+
+  } catch (err) {
+    log(`❌ Error: ${err.message}`);
+    showToast('❌ CEO Mode error: ' + err.message, 'error');
+  }
+}
+
+function _copyCEOAllContent() {
+  if (!window._ceoResults) return;
+  const { brief, results, platforms } = window._ceoResults;
+  let text = `===== CEO Content Factory =====\n\n📋 Brief:\n${brief}\n\n`;
+  platforms.forEach(p => { text += `===== ${p} =====\n${results[p]}\n\n`; });
+  navigator.clipboard.writeText(text);
+  showToast('📋 คัดลอกทั้งหมดแล้ว!', 'success');
+}
+
+function _saveCEOToHistory(topic, platformStr) {
+  if (!window._ceoResults) return;
+  const { brief, results, platforms } = window._ceoResults;
+  platforms.forEach(p => {
+    const history = JSON.parse(localStorage.getItem('cs-content-history') || '[]');
+    history.unshift({ icon: '👔', agentName: `CEO → ${p}`, provider: 'gemini', content: results[p], timestamp: Date.now() });
+    if (history.length > 50) history.pop();
+    localStorage.setItem('cs-content-history', JSON.stringify(history));
+  });
+  showToast(`💾 บันทึก ${platforms.length} รายการเข้า History!`, 'success');
+}
+
+function _scheduleCEOContent(topic, platformStr) {
+  if (!window._ceoResults) return;
+  const { platforms } = window._ceoResults;
+  const posts = JSON.parse(localStorage.getItem('cs-scheduled-posts') || '[]');
+  const now = new Date();
+  platforms.forEach((p, i) => {
+    posts.push({
+      title: `CEO: ${topic.substring(0, 30)} (${p})`,
+      platform: p.toLowerCase(),
+      type: p === 'TikTok' ? 'reel' : 'post',
+      day: now.getDate() + i + 1,
+      month: now.getMonth(),
+      year: now.getFullYear(),
+      created: Date.now() + i,
+      fromCEO: true
+    });
+  });
+  localStorage.setItem('cs-scheduled-posts', JSON.stringify(posts));
+  showToast(`📅 Schedule ${platforms.length} posts ใน Calendar!`, 'success');
 }
