@@ -1374,34 +1374,19 @@ async function executeCEOPlan() {
   try {
     // Step 1: CEO Analysis
     log('🔍 Step 1: CEO กำลังวิเคราะห์...');
-    const apiKey = Store.get('GOOGLE_AI_KEY');
-    const analysisUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    
-    const analysisParts = [{ text: `คุณคือ CEO / ประธานบริษัท ผู้เชี่ยวชาญด้านการตลาดดิจิทัล
-วิเคราะห์หัวข้อนี้และสร้าง Content Brief:
 
-หัวข้อ: ${topic}
-
-ตอบเป็นภาษาไทย ให้ครบ:
+    const ceoSystemPrompt = `คุณคือ CEO / ประธานบริษัท ผู้เชี่ยวชาญด้านการตลาดดิจิทัล
+วิเคราะห์หัวข้อที่ให้มาและสร้าง Content Brief ตอบเป็นภาษาไทย ให้ครบ:
 1. 🎯 Target Audience (กลุ่มเป้าหมาย)
 2. 💡 Key Message (สารหลัก)
 3. 🎨 Visual Direction (สไตล์ภาพ)
 4. 📝 Tone of Voice (น้ำเสียง)
 5. #️⃣ Hashtags แนะนำ 10 อัน
-6. 📊 แนะนำเวลาโพสต์ที่ดีที่สุด` }];
-    if (_ceoImage) analysisParts.push({ inlineData: { mimeType: _ceoImage.mimeType, data: _ceoImage.base64 } });
+6. 📊 แนะนำเวลาโพสต์ที่ดีที่สุด`;
 
-    const analysisResp = await fetch(analysisUrl, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: analysisParts }],
-        generationConfig: { temperature: 0.8, maxOutputTokens: 2048 },
-        safetySettings: [{ category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }]
-      })
-    });
-    const analysisData = await analysisResp.json();
-    const brief = analysisData.candidates?.[0]?.content?.parts?.[0]?.text || 'ไม่สามารถวิเคราะห์ได้';
-    log('✅ Step 1 เสร็จ! CEO วิเคราะห์แล้ว');
+    const analysisResult = await callAIWithFailover(ceoSystemPrompt, `วิเคราะห์หัวข้อ: ${topic}`, { id: 'ceo', name: 'CEO', department: 'Executive' });
+    const brief = analysisResult?.response || 'ไม่สามารถวิเคราะห์ได้';
+    log(`✅ Step 1 เสร็จ! CEO วิเคราะห์แล้ว (${analysisResult?.provider?.name || 'AI'})`);
 
     // Step 2: Generate content for each platform
     const results = {};
@@ -1416,17 +1401,13 @@ async function executeCEOPlan() {
         'YouTube': 'สร้าง YouTube script ภาษาไทย 3-5 นาที + Title SEO + Description + Tags 10 อัน + Thumbnail idea',
       };
 
-      const contentResp = await fetch(analysisUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: `จาก CEO Brief:\n${brief}\n\n${platPrompts[plat]}` }] }],
-          generationConfig: { temperature: 0.9, maxOutputTokens: 2048 },
-          safetySettings: [{ category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }]
-        })
-      });
-      const contentData = await contentResp.json();
-      results[plat] = contentData.candidates?.[0]?.content?.parts?.[0]?.text || `ไม่สามารถสร้างคอนเทนต์ ${plat} ได้`;
-      log(`✅ ${plat} เสร็จ!`);
+      const contentResult = await callAIWithFailover(
+        `คุณคือผู้เชี่ยวชาญด้านคอนเทนต์สำหรับ ${plat}`, 
+        `จาก CEO Brief:\n${brief}\n\n${platPrompts[plat]}`, 
+        { id: `content-${plat}`, name: plat + ' Writer', department: 'Content' }
+      );
+      results[plat] = contentResult?.response || `ไม่สามารถสร้างคอนเทนต์ ${plat} ได้`;
+      log(`✅ ${plat} เสร็จ! (${contentResult?.provider?.name || 'AI'})`);
     }
 
     // Step 3: Show all results in tab modal
