@@ -1301,6 +1301,10 @@ async function startCEOMode() {
   const provider = getActiveAIProvider();
   if (!provider) { showToast('❌ ต้องตั้ง API Key ก่อน (Settings → API)', 'error'); return; }
 
+  // Read default platforms from CEO Settings
+  const ceoSettings = JSON.parse(localStorage.getItem('ceo-settings') || '{}');
+  const defaultPlatforms = ceoSettings.platforms || ['Facebook','Instagram','TikTok','YouTube'];
+
   // Show CEO Mode input modal
   showModal(`
     <div style="max-width:500px">
@@ -1325,12 +1329,19 @@ async function startCEOMode() {
       </div>
 
       <div style="margin-bottom:16px">
-        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:4px">🎯 Platform เป้าหมาย</label>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <label style="font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ceo_fb" checked> 📘 Facebook</label>
-          <label style="font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ceo_ig" checked> 📸 Instagram</label>
-          <label style="font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ceo_tk" checked> 🎵 TikTok</label>
-          <label style="font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ceo_yt" checked> 📺 YouTube</label>
+        <label style="font-size:11px;font-weight:700;display:block;margin-bottom:8px;color:var(--text-primary)">🎯 Platform เป้าหมาย</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${[{id:'ceo_fb',plat:'Facebook',icon:'📘',color:'#1877f2'},
+             {id:'ceo_ig',plat:'Instagram',icon:'📸',color:'#e1306c'},
+             {id:'ceo_tk',plat:'TikTok',icon:'🎵',color:'#010101'},
+             {id:'ceo_yt',plat:'YouTube',icon:'📺',color:'#ff0000'}].map(p => {
+            const selected = defaultPlatforms.includes(p.plat);
+            return `<label id="lbl_${p.id}" style="display:flex;align-items:center;gap:10px;padding:12px;background:${selected?`rgba(${p.color.replace('#','').match(/.{2}/g).map(h=>parseInt(h,16)).join(',')},0.08)`:'var(--bg-input)'};border:2px solid ${selected?p.color:'var(--border)'};border-radius:12px;cursor:pointer;transition:all 0.2s" onclick="_toggleCEOPlatformUI('${p.id}','${p.plat}','${p.color}',this)">
+              <input type="checkbox" id="${p.id}" ${selected?'checked':''} style="display:none">
+              <span style="font-size:28px">${p.icon}</span>
+              <span style="font-weight:700;font-size:12px;color:var(--text-primary)">${p.plat}</span>
+            </label>`;
+          }).join('')}
         </div>
       </div>
 
@@ -1507,4 +1518,16 @@ function _scheduleCEOContent(topic, platformStr) {
   });
   localStorage.setItem('cs-scheduled-posts', JSON.stringify(posts));
   showToast(`📅 Schedule ${platforms.length} posts ใน Calendar!`, 'success');
+}
+
+function _toggleCEOPlatformUI(checkboxId, platform, color, labelEl) {
+  const cb = document.getElementById(checkboxId);
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  const selected = cb.checked;
+  // Convert hex color to rgba
+  const hex = color.replace('#','');
+  const [r,g,b] = hex.match(/.{2}/g).map(h=>parseInt(h,16));
+  labelEl.style.border = `2px solid ${selected ? color : 'var(--border)'}`;
+  labelEl.style.background = selected ? `rgba(${r},${g},${b},0.1)` : 'var(--bg-input)';
 }

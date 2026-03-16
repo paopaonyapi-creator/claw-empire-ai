@@ -48,7 +48,12 @@
     if (navBtn) navBtn.classList.add('active');
     if (tabEl) tabEl.classList.add('active');
 
-    document.getElementById('currentSection').textContent = t(tabId);
+    const tabLabels = {
+      dashboard: '👔 CEO Dashboard',
+      chat: '💬 CEO Chat',
+      settings: '⚙️ Settings',
+    };
+    document.getElementById('currentSection').textContent = tabLabels[tabId] || t(tabId) || tabId;
 
     if (tabRenderers[tabId]) tabRenderers[tabId]();
     Store.set('activeTab', tabId);
