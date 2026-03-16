@@ -154,6 +154,8 @@ function renderContentStudio() {
           <button class="btn btn-sm" onclick="aiAudienceInsight()" style="background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;font-size:11px">🧠 Audience Insight</button>
           <button class="btn btn-sm" onclick="aiWritePost()" style="background:linear-gradient(135deg,#22c55e,#14b8a6);color:#fff;font-size:11px">✍️ Write Post</button>
           <button class="btn btn-sm" onclick="aiGenerateHooks()" style="background:linear-gradient(135deg,#ef4444,#ec4899);color:#fff;font-size:11px">🎣 Generate Hooks</button>
+          <button class="btn btn-sm" onclick="aiGenerateHashtags()" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;font-size:11px">#️⃣ Hashtags</button>
+          <button class="btn btn-sm" onclick="aiContentScore()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-size:11px">💯 Content Score</button>
           <button class="btn btn-sm" onclick="aiVisualBrief()" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;font-size:11px">🎨 Visual Brief</button>
           <button class="btn btn-sm" onclick="aiVideoScript()" style="background:linear-gradient(135deg,#ec4899,#f59e0b);color:#fff;font-size:11px">🎬 Video Script</button>
           <button class="btn btn-sm" onclick="aiWeeklyAnalysis()" style="background:linear-gradient(135deg,#3b82f6,#22c55e);color:#fff;font-size:11px">📊 AI Analysis</button>
@@ -974,15 +976,18 @@ function showCalendarDay(day) {
   showModal(`
     <div style="max-width:420px">
       <h3 style="margin-bottom:12px">📅 วันที่ ${day} ${['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][now.getMonth()]}</h3>
-      ${dayItems.length ? '<div style="margin-bottom:12px">' + dayItems.map(i => `
+      ${dayItems.length ? '<div style="margin-bottom:12px">' + dayItems.map((i, idx) => {
+        const isScheduled = i.created && !i.date; // scheduled posts have no .date field
+        return `
         <div style="padding:10px;background:var(--bg-input);border-radius:10px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
           <span style="font-size:18px">${platformIcons[i.platform]||'📄'}</span>
           <div style="flex:1">
             <div style="font-weight:700;font-size:12px">${i.title}</div>
             <div style="font-size:10px;color:var(--text-muted)">${i.platform || 'All'} · ${i.type || 'post'}</div>
           </div>
-        </div>
-      `).join('') + '</div>' : '<p style="color:var(--text-muted);text-align:center;margin-bottom:12px">ยังไม่มีคอนเทนต์วันนี้</p>'}
+          ${isScheduled ? `<button onclick="_deleteScheduledPost(${day},${idx})" style="background:none;border:none;cursor:pointer;font-size:14px;padding:4px;border-radius:6px;color:var(--text-muted)" title="ลบ" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">🗑️</button>` : ''}
+        </div>`;
+      }).join('') + '</div>' : '<p style="color:var(--text-muted);text-align:center;margin-bottom:12px">ยังไม่มีคอนเทนต์วันนี้</p>'}
       <div style="background:var(--bg-input);border-radius:12px;padding:12px;border:1px dashed var(--border)">
         <div style="font-weight:700;font-size:12px;margin-bottom:8px">➕ เพิ่มคอนเทนต์วันนี้</div>
         <input id="schedTitle" placeholder="ชื่อคอนเทนต์..." style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text);font-size:12px;margin-bottom:6px;box-sizing:border-box">
@@ -1233,6 +1238,91 @@ function _addScheduledPost(day) {
   localStorage.setItem('cs-scheduled-posts', JSON.stringify(posts));
   showToast(`✅ เพิ่ม "${title}" ในวันที่ ${day} แล้ว!`, 'success');
   showCalendarDay(day);
+}
+
+function _deleteScheduledPost(day, itemIdx) {
+  const now = new Date();
+  const posts = _getScheduledPosts();
+  // Find scheduled posts for this day and remove the one at itemIdx
+  let matchIdx = -1;
+  for (let i = 0; i < posts.length; i++) {
+    if (posts[i].day === day && posts[i].month === now.getMonth() && posts[i].year === now.getFullYear()) {
+      matchIdx++;
+      // itemIdx is relative to the day's display (including content items before scheduled)
+      // We track by timestamp match instead
+    }
+  }
+  // Simpler: remove posts for this day that match
+  const dayPosts = posts.filter(p => p.day === day && p.month === now.getMonth() && p.year === now.getFullYear());
+  if (dayPosts.length > 0) {
+    const toRemove = dayPosts[0]; // Remove first match for simplicity
+    const idx = posts.findIndex(p => p.created === toRemove.created);
+    if (idx >= 0) {
+      posts.splice(idx, 1);
+      localStorage.setItem('cs-scheduled-posts', JSON.stringify(posts));
+      showToast(`🗑️ ลบแล้ว!`, 'success');
+      showCalendarDay(day);
+    }
+  }
+}
+
+// ===== #️⃣ Hashtag Generator =====
+async function aiGenerateHashtags() {
+  const topic = _getTopicInput();
+  _showAILoading('#️⃣', 'Hashtag Generator', 'กำลังสร้าง Hashtag...');
+  try {
+    const result = await _callAIWithTimeout(
+      `คุณคือ Hashtag Specialist ผู้เชี่ยวชาญด้าน Social Media Hashtag
+ตอบเป็นภาษาไทย สร้าง Hashtag แบ่งตาม Platform:
+
+1. Facebook (10 hashtags) — เน้นที่ engagement + niche
+2. Instagram (15 hashtags) — ผสม big/medium/small เพื่อ reach สูงสุด
+3. TikTok (10 hashtags) — เน้น trending + FYP
+4. X/Twitter (5 hashtags) — สั้นกระชับ
+
+แต่ละชุดต้อง:
+- แสดง hashtag พร้อมเหตุผลว่าทำไมเลือกอันนี้
+- ให้คะแนน Trending Score (1-10) แต่ละอัน
+- ให้คำแนะนำว่าอันไหนควรใช้คู่กันเพื่อ boost reach`,
+      `สร้าง hashtag สำหรับหัวข้อ: ${topic}`,
+      { name: 'Hashtag Generator', department: 'Social Media' }
+    );
+    _showAIResult('#️⃣', 'Hashtag Generator', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// ===== 💯 Content Score =====
+async function aiContentScore() {
+  // Try to get latest AI content
+  const history = _getContentHistory();
+  const latestContent = history.length > 0 ? history[0].content : null;
+  if (!latestContent) {
+    showToast('⚠️ ยังไม่มีคอนเทนต์ — ลองใช้ AI สร้างคอนเทนต์ก่อน แล้วกลับมาให้คะแนน!', 'warning');
+    return;
+  }
+  _showAILoading('💯', 'Content Score', 'กำลังวิเคราะห์คอนเทนต์...');
+  try {
+    const result = await _callAIWithTimeout(
+      `คุณคือ Content Quality Analyst ผู้เชี่ยวชาญด้านการประเมินคุณภาพคอนเทนต์
+ตอบเป็นภาษาไทย วิเคราะห์คอนเทนต์ต่อไปนี้ ให้คะแนน:
+
+## 🎯 Content Score: XX/100
+
+แบ่งคะแนนย่อย 5 ด้าน:
+1. 🎣 Hook Power (X/20) — พาดหัวดึงดูดแค่ไหน?
+2. 📝 Readability (X/20) — อ่านง่ายแค่ไหน?
+3. 🎯 Value (X/20) — ให้คุณค่าแค่ไหน?
+4. 📱 Platform Fit (X/20) — เหมาะกับ platform ไหน?
+5. 💡 CTA Strength (X/20) — กระตุ้นให้ทำอะไรได้?
+
+## ✅ จุดแข็ง (3 ข้อ)
+## ⚠️ ควรปรับ (3 ข้อ)
+## 💡 เวอร์ชันปรับปรุง (เขียนใหม่ให้สั้นๆ)`,
+      `วิเคราะห์คอนเทนต์นี้:\n\n${latestContent.substring(0, 2000)}`,
+      { name: 'Content Analyst', department: 'Quality' }
+    );
+    _showAIResult('💯', 'Content Score', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
 }
 
 // ===== Register Tab =====
