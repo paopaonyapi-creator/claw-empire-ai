@@ -372,6 +372,20 @@ async function sendChatMessage() {
   input.value = '';
   renderChat();
 
+  // Execute command side-effects (create tasks, change status, etc.)
+  if (isCommand) {
+    const cmdResult = executeChatCommand(text, selectedChatAgent);
+    if (cmdResult) {
+      Store.update('messages', msgs => [...msgs,
+        { id: generateId(), from: selectedChatAgent, to: 'ceo', text: cmdResult, type: 'response', ts: Date.now(), isSystem: true }
+      ]);
+      renderChat();
+      if (typeof renderKanban === 'function') renderKanban();
+      if (typeof renderDashboard === 'function') renderDashboard();
+      // Still continue to AI for additional commentary
+    }
+  }
+
   const agent = Store.getAgent(selectedChatAgent);
   const provider = getActiveAIProvider();
 
@@ -443,6 +457,114 @@ async function sendChatMessage() {
   }
 
   renderChat();
+}
+
+// ===== $ Command Executor — Real Actions =====
+function executeChatCommand(text, agentId) {
+  const cmd = text.slice(1).trim().toLowerCase();
+  const agent = Store.getAgent(agentId);
+  const agentName = agent?.name || 'Agent';
+
+  // $task <title> — Create a new task on Kanban
+  if (cmd.startsWith('task ') || cmd.startsWith('create ')) {
+    const title = text.slice(text.indexOf(' ') + 1).trim();
+    if (!title) return null;
+    const newTask = {
+      id: generateId(),
+      title: title,
+      description: `Created via chat command by CEO → ${agentName}`,
+      department: agent?.department || 'engineering',
+      priority: 'medium',
+      status: 'todo',
+      assignee: agentId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      dueDate: Date.now() + 7 * 86400000,
+      tags: [agent?.department || 'general'],
+    };
+    Store.update('tasks', tasks => [...tasks, newTask]);
+    Store.update('agents', agents => agents.map(a =>
+      a.id === agentId ? { ...a, tasksCompleted: (a.tasksCompleted || 0) } : a
+    ));
+    return `✅ **Task Created!**\n📋 "${title}"\n📌 Status: To Do\n👤 Assigned to: ${agentName}\n📅 Due: ${new Date(newTask.dueDate).toLocaleDateString()}\n\n_Check the Kanban board to track progress._`;
+  }
+
+  // $done <task-keyword> — Mark task as done
+  if (cmd.startsWith('done ') || cmd.startsWith('complete ')) {
+    const keyword = cmd.replace(/^(done|complete)\s+/, '').trim();
+    const tasks = Store.get('tasks');
+    const match = tasks.find(t => t.title.toLowerCase().includes(keyword) && t.status !== 'done');
+    if (match) {
+      Store.update('tasks', tasks => tasks.map(t =>
+        t.id === match.id ? { ...t, status: 'done', updatedAt: Date.now() } : t
+      ));
+      Store.update('agents', agents => agents.map(a =>
+        a.id === agentId ? { ...a, tasksCompleted: (a.tasksCompleted || 0) + 1, xp: (a.xp || 0) + 25 } : a
+      ));
+      return `✅ **Task Completed!**\n📋 "${match.title}"\n🎉 +25 XP for ${agentName}!`;
+    }
+    return `❌ No active task found matching "${keyword}".`;
+  }
+
+  // $assign <agent-name> <task-keyword> — Reassign task
+  if (cmd.startsWith('assign ')) {
+    const parts = cmd.replace('assign ', '').split(' to ');
+    if (parts.length < 2) return `❌ Usage: \`$assign <task> to <agent>\``;
+    const taskKey = parts[0].trim();
+    const agentKey = parts[1].trim();
+    const tasks = Store.get('tasks');
+    const agents = Store.get('agents');
+    const task = tasks.find(t => t.title.toLowerCase().includes(taskKey));
+    const target = agents.find(a => a.name.toLowerCase().includes(agentKey));
+    if (!task) return `❌ No task found matching "${taskKey}".`;
+    if (!target) return `❌ No agent found matching "${agentKey}".`;
+    Store.update('tasks', tasks => tasks.map(t =>
+      t.id === task.id ? { ...t, assignee: target.id, updatedAt: Date.now() } : t
+    ));
+    return `✅ **Task Reassigned!**\n📋 "${task.title}"\n👤 Now assigned to: ${target.name}`;
+  }
+
+  // $status <new-status> — Change agent status
+  if (cmd.startsWith('status ')) {
+    const newStatus = cmd.replace('status ', '').trim();
+    const validStatuses = ['active', 'idle', 'busy', 'offline'];
+    const status = validStatuses.find(s => s.startsWith(newStatus)) || newStatus;
+    Store.update('agents', agents => agents.map(a =>
+      a.id === agentId ? { ...a, status } : a
+    ));
+    return `✅ ${agentName} status changed to: **${status}**`;
+  }
+
+  // $priority <task-keyword> <high|medium|low>
+  if (cmd.startsWith('priority ')) {
+    const parts = cmd.replace('priority ', '').trim().split(/\s+/);
+    const level = parts.pop();
+    const keyword = parts.join(' ');
+    if (!['high', 'medium', 'low'].includes(level)) return `❌ Priority must be: high, medium, or low`;
+    const tasks = Store.get('tasks');
+    const task = tasks.find(t => t.title.toLowerCase().includes(keyword));
+    if (!task) return `❌ No task found matching "${keyword}".`;
+    Store.update('tasks', tasks => tasks.map(t =>
+      t.id === task.id ? { ...t, priority: level, updatedAt: Date.now() } : t
+    ));
+    return `✅ "${task.title}" priority set to **${level}** ${{ high: '🔴', medium: '🟡', low: '🟢' }[level]}`;
+  }
+
+  // $report — Quick agent report
+  if (cmd === 'report' || cmd === 'summary') {
+    const myTasks = Store.get('tasks').filter(t => t.assignee === agentId);
+    const done = myTasks.filter(t => t.status === 'done').length;
+    const active = myTasks.filter(t => t.status === 'in_progress').length;
+    const todo = myTasks.filter(t => t.status === 'todo').length;
+    return `📊 **${agentName} Report**\n✅ Done: ${done} | 🔄 Active: ${active} | 📌 To Do: ${todo}\n📈 Total: ${myTasks.length} tasks | Level: ${agent?.level || 1} | XP: ${agent?.xp || 0}`;
+  }
+
+  // $help — Command list
+  if (cmd === 'help' || cmd === 'commands') {
+    return `📖 **Available Commands:**\n\n\`$task <title>\` — Create new task\n\`$done <keyword>\` — Complete a task\n\`$assign <task> to <agent>\` — Reassign task\n\`$status <active|busy|idle>\` — Change status\n\`$priority <task> <high|med|low>\` — Set priority\n\`$report\` — Quick status report\n\`$help\` — Show this list`;
+  }
+
+  return null; // Not a recognized command, let AI handle it
 }
 
 function buildAgentSystemPrompt(agent, isCommand, userText) {
