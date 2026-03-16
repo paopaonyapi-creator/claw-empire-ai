@@ -143,7 +143,9 @@ function renderContentStudio() {
           <span style="font-weight:800;font-size:14px;background:linear-gradient(135deg,#ec4899,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent">AI Content Powers</span>
           <span style="font-size:10px;color:var(--text-muted)">— ใช้ AI จริงสร้างคอนเทนต์</span>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-sm" onclick="aiAutoWorkflow()" style="background:linear-gradient(135deg,#ff6b6b,#ee5a24,#f9ca24);color:#fff;font-size:12px;font-weight:800;padding:8px 16px;box-shadow:0 4px 15px rgba(238,90,36,0.4);animation:pulse 2s infinite">🚀 Auto Content</button>
+          <span style="color:var(--text-muted);font-size:9px">|</span>
           <button class="btn btn-sm" onclick="aiScanTrends()" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;font-size:11px">🔍 Scan Trends</button>
           <button class="btn btn-sm" onclick="aiAudienceInsight()" style="background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;font-size:11px">🧠 Audience Insight</button>
           <button class="btn btn-sm" onclick="aiWritePost()" style="background:linear-gradient(135deg,#22c55e,#14b8a6);color:#fff;font-size:11px">✍️ Write Post</button>
@@ -718,6 +720,126 @@ async function aiWeeklyAnalysis() {
     );
     _showAIResult('📊', 'AI Weekly Analysis', result.provider?.name || 'AI', result.response);
   } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// ===== 🚀 AI Auto-Workflow — Chain 5 Agents =====
+
+function _updateAutoProgress(steps, currentIdx, statusText) {
+  const modal = document.querySelector('.modal-content') || document.querySelector('[style*="max-width:600px"]');
+  const container = document.getElementById('auto-workflow-progress');
+  if (!container) return;
+  container.innerHTML = `
+    <div style="margin-bottom:16px">
+      ${steps.map((s, i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;margin-bottom:6px;
+          background:${i === currentIdx ? 'linear-gradient(135deg,rgba(99,102,241,0.12),rgba(236,72,153,0.08))' : i < currentIdx ? 'rgba(34,197,94,0.06)' : 'var(--bg-input)'};
+          border:${i === currentIdx ? '2px solid #6366f1' : '1px solid var(--border)'};
+          ${i === currentIdx ? 'box-shadow:0 2px 12px rgba(99,102,241,0.15)' : ''}">
+          <div style="width:36px;height:36px;border-radius:10px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:18px;
+            ${i === currentIdx ? 'animation:pulse 1.5s infinite' : ''}">${s.icon}</div>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:12px">${s.name}</div>
+            <div style="font-size:10px;color:var(--text-muted)">${s.task}</div>
+          </div>
+          <div style="font-size:16px">${i < currentIdx ? '✅' : i === currentIdx ? '⏳' : '⬜'}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:11px;color:#6366f1;font-weight:700">${statusText}</div>
+      <div style="width:100%;height:6px;background:var(--border);border-radius:4px;margin-top:8px;overflow:hidden">
+        <div style="width:${Math.round(((currentIdx + 0.5) / steps.length) * 100)}%;height:100%;background:linear-gradient(90deg,#6366f1,#ec4899);border-radius:4px;transition:width 0.5s"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">${currentIdx + 1} / ${steps.length} steps</div>
+    </div>
+  `;
+}
+
+async function aiAutoWorkflow() {
+  const steps = [
+    { icon: '🔍', name: 'Trend Hunter', task: 'สแกนเทรนด์ที่มาแรง', color: '#f59e0b',
+      prompt: 'สแกนเทรนด์โซเชียลมีเดียที่มาแรงตอนนี้ ให้ 3 หัวข้อที่น่าทำคอนเทนต์ ตอบสั้นๆ แต่ละหัวข้อ 2-3 บรรทัด',
+      system: 'คุณคือ Trend Hunter ตอบภาษาไทยสั้นกระชับ ให้ 3 เทรนด์ที่มาแรง พร้อมเหตุผลสั้นๆ' },
+    { icon: '🧠', name: 'Audience Planner', task: 'วิเคราะห์มุมเล่าที่โดนใจ', color: '#8b5cf6',
+      prompt: '', // will be filled with trend result
+      system: 'คุณคือ Audience Insight Planner ตอบภาษาไทยสั้นกระชับ วิเคราะห์กลุ่มเป้าหมาย: Pain Points 3 ข้อ, Desires 3 ข้อ, แนะนำมุมเล่า 1 มุมที่ดีสุด' },
+    { icon: '✍️', name: 'Content Writer', task: 'เขียนโพสต์ฉบับเต็ม', color: '#22c55e',
+      prompt: '', // will be filled
+      system: 'คุณคือ Content Writer ตอบภาษาไทย เขียนโพสต์ Facebook ฉบับเต็มจากหัวข้อที่ให้ มี Hook เปิด + เนื้อหา 3 ย่อหน้า + CTA + hashtag 5 อัน' },
+    { icon: '🎣', name: 'Hook Specialist', task: 'สร้าง Hook 3 เวอร์ชัน', color: '#ef4444',
+      prompt: '', // will be filled
+      system: 'คุณคือ Hook Specialist ตอบภาษาไทย สร้าง Hook 3 เวอร์ชันจากโพสต์ที่ให้ แต่ละ Hook มีสไตล์ต่างกัน (Curiosity/Fear/Challenge) พร้อม CTA' },
+    { icon: '🎬', name: 'Video Producer', task: 'แตกเป็น 3 คลิปสั้น', color: '#ec4899',
+      prompt: '', // will be filled
+      system: 'คุณคือ Video Script Producer ตอบภาษาไทย แตกโพสต์เป็น 3 คลิปสั้น (15/30/60 วินาที) แต่ละคลิปมี: ชื่อ, Hook เปิด 3 วิ, เนื้อหา 3 จุด, CTA, Platform ที่เหมาะ' },
+  ];
+
+  // Show progress modal
+  showModal(`
+    <div style="max-width:600px">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:48px;animation:pulse 1.5s infinite">🚀</div>
+        <h3 style="background:linear-gradient(135deg,#ff6b6b,#ee5a24,#f9ca24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:20px">AI Auto Content</h3>
+        <p style="color:var(--text-muted);font-size:11px">5 AI Agents ทำงานต่อเนื่องอัตโนมัติ</p>
+      </div>
+      <div id="auto-workflow-progress"></div>
+    </div>
+  `);
+
+  const results = [];
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    _updateAutoProgress(steps, i, `${step.icon} ${step.name} กำลังทำงาน...`);
+
+    // Build prompt based on previous results
+    let userPrompt = step.prompt;
+    if (i === 1 && results[0]) {
+      userPrompt = `จากเทรนด์นี้:\n${results[0].substring(0, 500)}\n\nวิเคราะห์กลุ่มเป้าหมายและแนะนำมุมเล่าที่ดีที่สุด`;
+    } else if (i === 2 && results[1]) {
+      userPrompt = `จากการวิเคราะห์กลุ่มเป้าหมาย:\n${results[1].substring(0, 500)}\n\nเขียนโพสต์ Facebook ฉบับเต็มจากมุมเล่าที่แนะนำ`;
+    } else if (i === 3 && results[2]) {
+      userPrompt = `จากโพสต์นี้:\n${results[2].substring(0, 500)}\n\nสร้าง Hook 3 เวอร์ชัน`;
+    } else if (i === 4 && results[2]) {
+      userPrompt = `จากโพสต์นี้:\n${results[2].substring(0, 500)}\n\nแตกเป็น 3 คลิปสั้น`;
+    }
+
+    try {
+      const result = await callAIWithFailover(step.system, userPrompt, { name: step.name, department: 'Content' });
+      results.push(result.response);
+    } catch (e) {
+      results.push(`❌ Error: ${e.message}`);
+    }
+  }
+
+  // Show ALL completed
+  _updateAutoProgress(steps, steps.length, '🎉 เสร็จหมดแล้ว!');
+  await new Promise(r => setTimeout(r, 1000));
+
+  // Show comprehensive results
+  showModal(`
+    <div style="max-width:650px">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:48px">🎉</div>
+        <h3 style="background:linear-gradient(135deg,#ff6b6b,#ee5a24,#f9ca24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:20px">Auto Content สำเร็จ!</h3>
+        <p style="color:var(--text-muted);font-size:11px">5 AI Agents ทำงานเสร็จครบ — ผลลัพธ์พร้อมใช้</p>
+      </div>
+      <div style="max-height:500px;overflow-y:auto">
+        ${steps.map((s, i) => `
+          <details ${i === 2 ? 'open' : ''} style="margin-bottom:8px;border:1px solid var(--border);border-radius:12px;overflow:hidden">
+            <summary style="padding:12px;cursor:pointer;background:var(--bg-input);display:flex;align-items:center;gap:10px;font-weight:700;font-size:13px">
+              <span style="font-size:20px">${s.icon}</span>
+              <span style="flex:1">${s.name}</span>
+              <span style="font-size:12px">${results[i]?.startsWith('❌') ? '❌' : '✅'}</span>
+            </summary>
+            <div style="padding:14px;font-size:12px;line-height:1.7;white-space:pre-wrap;background:var(--bg-card)">${results[i] || 'No result'}</div>
+          </details>
+        `).join('')}
+      </div>
+    </div>
+  `);
+
+  showToast('🚀 Auto Content เสร็จครบ 5 ขั้นตอน!', 'success', 5000);
 }
 
 // ===== Register Tab =====
