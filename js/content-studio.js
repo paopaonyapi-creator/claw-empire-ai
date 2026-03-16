@@ -136,6 +136,24 @@ function renderContentStudio() {
         </div>
       </div>
 
+      <!-- AI Power Panel -->
+      <div style="background:linear-gradient(135deg,rgba(236,72,153,0.08),rgba(99,102,241,0.08));border:1px solid rgba(236,72,153,0.2);border-radius:16px;padding:16px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:18px">🤖</span>
+          <span style="font-weight:800;font-size:14px;background:linear-gradient(135deg,#ec4899,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent">AI Content Powers</span>
+          <span style="font-size:10px;color:var(--text-muted)">— ใช้ AI จริงสร้างคอนเทนต์</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm" onclick="aiScanTrends()" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;font-size:11px">🔍 Scan Trends</button>
+          <button class="btn btn-sm" onclick="aiAudienceInsight()" style="background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;font-size:11px">🧠 Audience Insight</button>
+          <button class="btn btn-sm" onclick="aiWritePost()" style="background:linear-gradient(135deg,#22c55e,#14b8a6);color:#fff;font-size:11px">✍️ Write Post</button>
+          <button class="btn btn-sm" onclick="aiGenerateHooks()" style="background:linear-gradient(135deg,#ef4444,#ec4899);color:#fff;font-size:11px">🎣 Generate Hooks</button>
+          <button class="btn btn-sm" onclick="aiVisualBrief()" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;font-size:11px">🎨 Visual Brief</button>
+          <button class="btn btn-sm" onclick="aiVideoScript()" style="background:linear-gradient(135deg,#ec4899,#f59e0b);color:#fff;font-size:11px">🎬 Video Script</button>
+          <button class="btn btn-sm" onclick="aiWeeklyAnalysis()" style="background:linear-gradient(135deg,#3b82f6,#22c55e);color:#fff;font-size:11px">📊 AI Analysis</button>
+        </div>
+      </div>
+
       <!-- Active Workflow Status -->
       <div style="background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.08));border:1px solid rgba(99,102,241,0.2);border-radius:16px;padding:20px;margin-bottom:24px">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
@@ -489,6 +507,217 @@ function showWeeklyReport() {
       </div>
     </div>
   `);
+}
+
+// ===== 🤖 AI Content Generator Functions =====
+
+function _showAILoading(agentIcon, agentName, loading) {
+  showModal(`
+    <div style="text-align:center;padding:30px">
+      <div style="font-size:60px;margin-bottom:12px;animation:pulse 1.5s infinite">${agentIcon}</div>
+      <h3>${agentName}</h3>
+      <p style="color:var(--text-muted);font-size:12px">${loading}</p>
+      <div style="width:60px;height:4px;background:var(--border);border-radius:4px;margin:16px auto;overflow:hidden">
+        <div style="width:100%;height:100%;background:linear-gradient(90deg,#6366f1,#ec4899);animation:loading 1.5s infinite;border-radius:4px"></div>
+      </div>
+    </div>
+  `);
+}
+
+function _showAIResult(agentIcon, agentName, provider, content) {
+  showModal(`
+    <div style="max-width:550px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div style="font-size:36px">${agentIcon}</div>
+        <div>
+          <h3 style="margin:0">${agentName}</h3>
+          <div style="font-size:10px;color:var(--text-muted)">Powered by ${provider} 🤖</div>
+        </div>
+      </div>
+      <div style="padding:16px;background:var(--bg-input);border-radius:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:500px;overflow-y:auto">${content}</div>
+    </div>
+  `);
+}
+
+function _getTopicInput() {
+  const items = getContentItems();
+  const ideas = items.filter(i => i.stage === 'idea' || i.stage === 'draft');
+  if (ideas.length > 0) return ideas[0].title;
+  return 'เทคนิคขายของออนไลน์ให้ปังในปี 2024';
+}
+
+// 1. 🔍 Trend Hunter — Scan Trends
+async function aiScanTrends() {
+  _showAILoading('🔍', 'Trend Hunter', 'กำลังสแกนเทรนด์...');
+  try {
+    const result = await callAIWithFailover(
+      `คุณคือ Trend Hunter ผู้เชี่ยวชาญด้านการจับเทรนด์ออนไลน์
+ตอบเป็นภาษาไทย ให้รายงาน Hot Topics 5 อันดับที่มาแรงตอนนี้
+แต่ละหัวข้อต้องมี:
+- ชื่อเทรนด์
+- ทำไมถึงมาแรง
+- ควรเล่ามุมไหน
+- Platform ไหนเหมาะสุด
+- ระดับความร้อน (🔥 1-5)
+จัดไป 5 เทรนด์ ให้สั้นกระชับ`,
+      'สแกนเทรนด์ที่มาแรงตอนนี้ในโซเชียลมีเดีย วิเคราะห์ให้หน่อย',
+      { name: 'Trend Hunter', department: 'Research' }
+    );
+    _showAIResult('🔍', 'Trend Hunter Report', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// 2. 🧠 Audience Insight Planner
+async function aiAudienceInsight() {
+  const topic = _getTopicInput();
+  _showAILoading('🧠', 'Audience Insight Planner', 'กำลังวิเคราะห์กลุ่มเป้าหมาย...');
+  try {
+    const result = await callAIWithFailover(
+      `คุณคือ Audience Insight Planner ผู้เชี่ยวชาญด้านพฤติกรรมผู้บริโภค
+ตอบเป็นภาษาไทย วิเคราะห์กลุ่มเป้าหมายสำหรับหัวข้อที่ให้มา:
+1. Pain Points — เจ็บตรงไหน 3 ข้อ
+2. Desires — อยากได้อะไร 3 ข้อ
+3. Fears — กลัวอะไร 3 ข้อ
+4. Beliefs — เชื่อคำแบบไหน
+5. Hook ที่จะหยุดนิ้ว — แนะนำ 3 มุมเล่า
+6. แนะนำ: ควรเล่ามุมไหนถึงจะโดนที่สุด
+ให้กระชับ ใช้ emoji`,
+      `หัวข้อ: "${topic}" — วิเคราะห์กลุ่มเป้าหมายให้หน่อย`,
+      { name: 'Audience Planner', department: 'Research' }
+    );
+    _showAIResult('🧠', 'Audience Insight', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// 3. ✍️ Content Writer — Write Post
+async function aiWritePost() {
+  const topic = _getTopicInput();
+  _showAILoading('✍️', 'Content Writer', 'กำลังเขียนโพสต์...');
+  try {
+    const result = await callAIWithFailover(
+      `คุณคือ Content Writer มืออาชีพ
+ตอบเป็นภาษาไทย เขียนโพสต์ Facebook ฉบับเต็มจากหัวข้อที่ให้มา:
+- เปิดด้วย Hook แรงๆ ให้หยุดเลื่อน
+- เนื้อหา 3-5 ย่อหน้า มีข้อมูล insight
+- ใช้ storytelling ดึงอารมณ์
+- ใส่ bullet points / numbered list ให้อ่านง่าย
+- ปิดด้วย CTA ที่ทำให้คนคอมเมนต์หรือแชร์
+- เพิ่ม hashtag 5-8 อัน
+- ความยาว 200-400 คำ`,
+      `หัวข้อ: "${topic}" — เขียนโพสต์ให้สมบูรณ์พร้อมลง`,
+      { name: 'Content Writer', department: 'Content' }
+    );
+    _showAIResult('✍️', 'Content Writer', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// 4. 🎣 Hook & Copy Specialist — Generate Hooks
+async function aiGenerateHooks() {
+  const topic = _getTopicInput();
+  _showAILoading('🎣', 'Hook & Copy Specialist', 'กำลังสร้าง Hook...');
+  try {
+    const result = await callAIWithFailover(
+      `คุณคือ Hook & Copy Specialist ผู้เชี่ยวชาญการเขียนพาดหัว
+ตอบเป็นภาษาไทย สร้าง Hook 5 เวอร์ชันจากหัวข้อที่ให้:
+
+สำหรับแต่ละ Hook ให้ระบุ:
+- Hook (ประโยคเปิด 1-2 บรรทัด)
+- สไตล์ (Curiosity / Fear / Challenge / Story / Shock)
+- CTA (Call to Action) 1 บรรทัด
+- คะแนนพลัง (⚡ 1-10)
+
+เรียงจากแรงสุดไปน้อยสุด ใช้ emoji`,
+      `หัวข้อ: "${topic}" — สร้าง Hook 5 เวอร์ชันให้`,
+      { name: 'Hook Specialist', department: 'Content' }
+    );
+    _showAIResult('🎣', 'Hook Generator', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// 5. 🎨 Visual Designer — Visual Brief
+async function aiVisualBrief() {
+  const topic = _getTopicInput();
+  _showAILoading('🎨', 'Visual Designer', 'กำลังออกแบบ Visual Brief...');
+  try {
+    const result = await callAIWithFailover(
+      `คุณคือ Visual Designer ผู้เชี่ยวชาญด้านออกแบบ
+ตอบเป็นภาษาไทย สร้าง Visual Brief สำหรับหัวข้อที่ให้:
+
+1. 🖼 ปกโพสต์:
+   - คอนเซ็ปต์ภาพ
+   - สี/โทน
+   - ข้อความบนภาพ (สั้นๆ)
+   - สไตล์ (minimal/bold/gradient/3D)
+
+2. 📱 คารูเซล (5 slides):
+   - Slide 1: ปก (หัวข้อ + hook)
+   - Slide 2-4: เนื้อหา (ข้อมูลสำคัญ)
+   - Slide 5: CTA + ติดตาม
+
+3. 🎬 Thumbnail:
+   - คอนเซ็ปต์ thumbnail สำหรับคลิป
+   - ข้อความ / expression / สี`,
+      `หัวข้อ: "${topic}" — ออกแบบ Visual Brief ให้ทั้งปก, คารูเซล, thumbnail`,
+      { name: 'Visual Designer', department: 'Design' }
+    );
+    _showAIResult('🎨', 'Visual Brief', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// 6. 🎬 Video Script Producer
+async function aiVideoScript() {
+  const topic = _getTopicInput();
+  _showAILoading('🎬', 'Video Script Producer', 'กำลังเขียน Script คลิปสั้น...');
+  try {
+    const result = await callAIWithFailover(
+      `คุณคือ Video Script Producer ผู้เชี่ยวชาญเขียนสคริปต์คลิปสั้น
+ตอบเป็นภาษาไทย แตกหัวข้อ 1 ชิ้นเป็น 3 คลิปสั้น:
+
+สำหรับแต่ละคลิป ให้ระบุ:
+📹 คลิปที่ [1/2/3]:
+- ชื่อคลิป
+- Hook เปิด (3 วินาทีแรก)
+- เนื้อหา (จุดสำคัญ 3-5 ข้อ)
+- CTA ปิด
+- ความยาว (15/30/60 วินาที)
+- Platform เหมาะ: TikTok/Reels/Shorts
+- Shot list (wide/close-up/screencast)
+
+ให้แต่ละคลิปต่างมุม: คลิป 1 = ข้อมูล, คลิป 2 = เล่าเรื่อง, คลิป 3 = ท้าทาย`,
+      `หัวข้อ: "${topic}" — แตกเป็น 3 คลิปสั้น`,
+      { name: 'Video Producer', department: 'Content' }
+    );
+    _showAIResult('🎬', 'Video Scripts (3 clips)', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
+}
+
+// 7. 📊 Performance Analyst — AI Weekly Analysis
+async function aiWeeklyAnalysis() {
+  const items = getContentItems();
+  const posted = items.filter(i => i.stage === 'posted');
+  const summary = items.map(i => `"${i.title}" (${i.platform}/${i.type}) → ${i.stage}, engagement: ${i.engagement}`).join('\n');
+
+  _showAILoading('📊', 'Performance Analyst', 'กำลังวิเคราะห์ผลงาน...');
+  try {
+    const result = await callAIWithFailover(
+      `คุณคือ Performance Analyst ผู้เชี่ยวชาญวิเคราะห์คอนเทนต์
+ตอบเป็นภาษาไทย วิเคราะห์ข้อมูลคอนเทนต์ที่ให้มา:
+
+สรุปให้ครอบคลุม:
+1. 📊 ภาพรวม: กี่ชิ้น / กี่ posted / กี่ in progress
+2. 🏆 โพสต์ที่ดีที่สุด + เหตุผล
+3. 📉 โพสต์ที่ควรปรับปรุง + แนะนำ
+4. 🔥 เทรนด์ที่ควรทำซ้ำ
+5. ⛔ สิ่งที่ควรหยุดทำ
+6. 📋 แนะนำ 3 หัวข้อถัดไปที่น่าจะปัง
+7. 💡 คะแนนสุขภาพคอนเทนต์ (/100)
+
+ใช้ emoji ให้อ่านง่าย กระชับ`,
+      `ข้อมูลคอนเทนต์:\n${summary}\n\nวิเคราะห์ผลงานรายสัปดาห์ให้หน่อย`,
+      { name: 'Performance Analyst', department: 'Analytics' }
+    );
+    _showAIResult('📊', 'AI Weekly Analysis', result.provider?.name || 'AI', result.response);
+  } catch (e) { showModal(`<div style="text-align:center"><div style="font-size:48px">❌</div><p>${e.message}</p></div>`); }
 }
 
 // ===== Register Tab =====
