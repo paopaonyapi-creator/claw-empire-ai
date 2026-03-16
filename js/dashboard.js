@@ -34,9 +34,15 @@ function renderDashboard() {
   const total = tasks.length || 1;
 
   document.getElementById('tab-dashboard').innerHTML = `
-    <div style="margin-bottom:24px">
-      <h2 style="font-size:22px;font-weight:800;margin-bottom:4px">${t('dashboard')}</h2>
-      <p style="color:var(--text-muted);font-size:13px">${t('realTimeOverview')}</p>
+    <div style="margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2 style="font-size:22px;font-weight:800;margin-bottom:4px">${t('dashboard')}</h2>
+        <p style="color:var(--text-muted);font-size:13px">${t('realTimeOverview')}</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="exportDashboardCSV()" title="Download CSV">📊 CSV</button>
+        <button class="btn btn-sm" onclick="exportDashboardJSON()" title="Download JSON">📋 JSON</button>
+      </div>
     </div>
 
     <!-- KPI Cards -->
@@ -145,7 +151,7 @@ function renderDashboard() {
     <!-- Charts Row -->
     <div class="grid-2" style="margin-bottom:24px">
       <!-- Bar Chart: Tasks by Department -->
-      <!-- Bar Chart: Tasks by Department -->
+      <!-- Bar Chart: Tasks by Department (Chart.js) -->
       <div class="card" style="cursor:pointer" onclick="narrateChart('department')" title="💡 คลิกเพื่อให้ AI อธิบายกราฟ">
         <div class="card-header">
           <div>
@@ -153,13 +159,8 @@ function renderDashboard() {
             <div class="card-subtitle">Distribution across teams · 💡 Click for AI analysis</div>
           </div>
         </div>
-        <div class="bar-chart">
-          ${deptTaskCounts.map(d => `
-            <div class="bar-chart-item">
-              <div class="bar-chart-bar" style="height:${(d.count/maxTasks)*100}%;background:${d.color}"></div>
-              <div class="bar-chart-label">${d.icon} ${d.count}</div>
-            </div>
-          `).join('')}
+        <div style="height:200px;position:relative">
+          <canvas id="deptBarChart"></canvas>
         </div>
       </div>
 
@@ -298,6 +299,48 @@ function renderDashboard() {
       <div id="ai-result-panel" style="margin-top:16px"></div>
     </div>
   `;
+
+  // Render Chart.js bar chart after DOM is ready
+  setTimeout(() => {
+    const canvas = document.getElementById('deptBarChart');
+    if (canvas && typeof Chart !== 'undefined') {
+      // Destroy previous instance if exists
+      if (canvas._chartInstance) canvas._chartInstance.destroy();
+      const ctx = canvas.getContext('2d');
+      canvas._chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: deptTaskCounts.map(d => d.icon + ' ' + d.name),
+          datasets: [{
+            label: 'Tasks',
+            data: deptTaskCounts.map(d => d.count),
+            backgroundColor: deptTaskCounts.map(d => d.color + '99'),
+            borderColor: deptTaskCounts.map(d => d.color),
+            borderWidth: 2,
+            borderRadius: 8,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { color: '#8892a8', stepSize: 1 },
+              grid: { color: 'rgba(255,255,255,0.06)' },
+            },
+            x: {
+              ticks: { color: '#8892a8', font: { size: 10 } },
+              grid: { display: false },
+            }
+          }
+        }
+      });
+    }
+  }, 50);
 }
 
 // ===== SVG Donut Chart =====
@@ -842,3 +885,66 @@ const _origRenderDashboard = renderDashboard;
     };
   }
 })();
+
+// ===== 📊 Export Functions =====
+function exportDashboardCSV() {
+  const agents = Store.get('agents');
+  const tasks = Store.get('tasks');
+  const date = new Date().toISOString().split('T')[0];
+
+  // Agent Report CSV
+  let csv = 'Name,Department,Level,XP,Status,Tasks Completed,Tasks Failed\n';
+  agents.forEach(a => {
+    const dept = Store.getDeptInfo(a.department);
+    csv += `"${a.name}","${dept?.name || a.department}",${a.level},${a.xp},"${a.status}",${a.tasksCompleted || 0},${a.tasksFailed || 0}\n`;
+  });
+
+  csv += '\n\nTask Report\nTitle,Status,Priority,Department,Assignee,Created,Due Date\n';
+  tasks.forEach(t => {
+    const agent = agents.find(a => a.id === t.assignee);
+    csv += `"${t.title}","${t.status}","${t.priority || 'medium'}","${t.department || ''}","${agent?.name || 'Unassigned'}","${new Date(t.createdAt).toLocaleDateString()}","${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : ''}"\n`;
+  });
+
+  downloadFile(`claw-empire-report-${date}.csv`, csv, 'text/csv');
+  showToast('📊 CSV Report downloaded!', 'success');
+}
+
+function exportDashboardJSON() {
+  const agents = Store.get('agents');
+  const tasks = Store.get('tasks');
+  const meetings = Store.get('meetings');
+  const date = new Date().toISOString().split('T')[0];
+
+  const report = {
+    generated: new Date().toISOString(),
+    summary: {
+      totalAgents: agents.length,
+      activeAgents: agents.filter(a => a.status === 'working').length,
+      totalTasks: tasks.length,
+      completedTasks: tasks.filter(t => t.status === 'done').length,
+      inProgress: tasks.filter(t => t.status === 'in_progress').length,
+      meetings: meetings.length,
+    },
+    agents: agents.map(a => ({
+      name: a.name, department: a.department, level: a.level, xp: a.xp,
+      status: a.status, tasksCompleted: a.tasksCompleted || 0,
+    })),
+    tasks: tasks.map(t => ({
+      title: t.title, status: t.status, priority: t.priority,
+      department: t.department, createdAt: t.createdAt, dueDate: t.dueDate,
+    })),
+  };
+
+  downloadFile(`claw-empire-report-${date}.json`, JSON.stringify(report, null, 2), 'application/json');
+  showToast('📋 JSON Report downloaded!', 'success');
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
